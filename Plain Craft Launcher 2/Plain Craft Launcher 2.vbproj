@@ -257,6 +257,11 @@
     <Compile Include="Modules\ModDevelop.vb" />
     <Compile Include="Modules\Minecraft\ModWatcher.vb" />
     <Compile Include="Modules\ModSecret.vb" />
+    <Compile Include="Modules\ModRecoveredConfig.vb" />
+    <Compile Include="Modules\ModRecoveredUpdate.vb" />
+    <Compile Include="Modules\ModRecoveredServer.vb" />
+    <Compile Include="Modules\ModRecoveredTheme.vb" />
+    <Compile Include="Modules\ModRecoveredIdentity.vb" />
     <Compile Include="Pages\PageDownload\Resource\PageResource.xaml.vb">
       <DependentUpon>PageResource.xaml</DependentUpon>
     </Compile>
@@ -949,6 +954,11 @@
     <Resource Include="Images\Heads\ChongQing.png" />
     <Resource Include="Images\Heads\HerobrineXia.png" />
 
+  </ItemGroup>
+  <ItemGroup Condition="Exists('PCL\recovered-config.local.json')">
+    <Content Include="PCL\recovered-config.local.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
 </Project>

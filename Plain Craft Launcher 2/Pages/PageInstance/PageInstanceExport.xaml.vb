@@ -479,7 +479,7 @@ Public Class PageInstanceExport
             Loaders.Add(New LoaderTask(Of Integer, Integer)("下载 PCL 正式版",
             Sub(Loader As LoaderTask(Of Integer, Integer))
                 DownloadLatestPCL(Loader)
-                FileUtils.Copy(PathTemp & "Latest.exe", CacheFolder & "Plain Craft Launcher.exe")
+                FileUtils.Copy(RecoveredLatestLauncherPath, CacheFolder & "Plain Craft Launcher.exe")
             End Sub) With {.ProgressWeight = 0.5, .Block = False})
         End If
 

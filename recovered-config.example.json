@@ -1,0 +1,9 @@
+{
+  "OAuthClientId": "",
+  "CurseForgeAPIKey": "",
+  "CdnSigningSecret": "",
+  "CdnSigningUserId": "0",
+  "ServerConfigUrl": "",
+  "UpdateBaseUrl": "",
+  "UpdateAllowAutomatic": false
+}

@@ -342,3 +342,7 @@ ASALocalRun/
 healthchecksdb
 
 MaskFiles/
+
+# Local credentials and deployment settings for the reconstructed client.
+**/recovered-config.local.json
+*.local.json
