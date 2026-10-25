@@ -218,6 +218,7 @@
     <Compile Include="Modules\Minecraft\ModJava.vb" />
     <Compile Include="Modules\Resource\LocalResourceLoaders.vb" />
     <Compile Include="Modules\Minecraft\ModModpack.vb" />
+    <Compile Include="Modules\Minecraft\ModModpackPolicy.vb" />
     <Compile Include="Modules\ThirdParty\DragHelper.vb" />
     <Compile Include="My Project\Resources.Designer.vb">
       <AutoGen>True</AutoGen>
@@ -257,6 +258,12 @@
     <Compile Include="Modules\ModDevelop.vb" />
     <Compile Include="Modules\Minecraft\ModWatcher.vb" />
     <Compile Include="Modules\ModSecret.vb" />
+    <Compile Include="Modules\ModRecoveredConfig.vb" />
+    <Compile Include="Modules\ModRecoveredUpdate.vb" />
+    <Compile Include="Modules\ModRecoveredServer.vb" />
+    <Compile Include="Modules\ModRecoveredTheme.vb" />
+    <Compile Include="Modules\ModRecoveredIdentity.vb" />
+    <Compile Include="Modules\ModLocalLink.vb" />
     <Compile Include="Pages\PageDownload\Resource\PageResource.xaml.vb">
       <DependentUpon>PageResource.xaml</DependentUpon>
     </Compile>
@@ -949,6 +956,11 @@
     <Resource Include="Images\Heads\ChongQing.png" />
     <Resource Include="Images\Heads\HerobrineXia.png" />
 
+  </ItemGroup>
+  <ItemGroup Condition="Exists('PCL\recovered-config.local.json')">
+    <Content Include="PCL\recovered-config.local.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
 </Project>

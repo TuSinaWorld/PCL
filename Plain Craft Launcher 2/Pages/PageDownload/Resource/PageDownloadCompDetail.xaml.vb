@@ -272,7 +272,7 @@ GroupDone:
         End If
         '实例化每个元素
         For Each Version In Versions
-            If Not RestrictMcDownload AndAlso TargetResourceType = ResourceTypes.ModPack Then
+            If TargetResourceType = ResourceTypes.ModPack Then
                 Stack.Children.Add(Version.ToListItem(AddressOf Install_Click, AddressOf Save_Click, IsBadDisplay:=HasDuplicates))
             Else
                 Stack.Children.Add(Version.ToListItem(AddressOf Save_Click, IsBadDisplay:=HasDuplicates))
@@ -343,7 +343,8 @@ GroupDone:
 
             '构造步骤加载器
             Dim Loaders As New List(Of LoaderBase)
-            Dim Target As String = $"{McFolderSelected}versions\{InstanceName}\原始整合包.{If(Project.Platform = ResourcePlatforms.CurseForge, "zip", "mrpack")}"
+            '先在任务缓存中下载并检查整合包；不支持的加载器不应留下新的实例目录。
+            Dim Target As String = $"{RequestTaskTempFolder()}原始整合包.{If(Project.Platform = ResourcePlatforms.CurseForge, "zip", "mrpack")}"
             Dim LogoFileAddress As String = ResourceItem.PathLogo.ActualSource
             Loaders.Add(New LoaderDownload("下载整合包文件", {
                 File.ToNetFile(Target, ResourceVersion.DownloadReason.Standalone, File.GameVersions.FirstOrDefault, File.ModLoaders)
