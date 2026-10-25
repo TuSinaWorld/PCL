@@ -39,9 +39,8 @@ Public Class Application
             '检查参数调用
             If e.Args.Length > 0 Then
                 If e.Args(0) = "--update" Then
-                    '自动更新
-                    UpdateReplace(e.Args(1), e.Args(2).Trim(""""), e.Args(3).Trim(""""), e.Args(4))
-                    Environment.Exit(ProcessReturnValues.TaskDone)
+                    ' Legacy update helpers are disabled, even when invoked with incomplete arguments.
+                    Environment.Exit(ProcessReturnValues.Fail)
                 ElseIf e.Args(0) = "--gpu" Then
                     '调整显卡设置
                     Try
@@ -113,11 +112,7 @@ RetryCacheCheck:
             End If
             '基础信息
             Logger.Info($"程序版本：{VersionDisplay} ({VersionCode}{If(CommitHash = "", "", $"，#{CommitHash}")})")
-            If BuildType = BuildTypes.Snapshot Then
-                Logger.Info($"识别码：{Identify}{If(ThemeCheckOne(9), "，已解锁反馈主题", "，未解锁反馈主题")}")
-            Else
-                Logger.Info($"识别码：{Identify}")
-            End If
+            Logger.Info($"识别码：{Identify}")
             Logger.Info($"程序路径：{PathExe}")
             Logger.Info($"系统编码：{Encoding.Default.HeaderName} ({Encoding.Default.CodePage}, GBK={IsGBKEncoding})")
             Logger.Info($"管理员权限：{WindowsUtils.HasAdminRole()}")

@@ -175,6 +175,13 @@ EndHint:
         ''' 输入模式：提示文本。
         ''' </summary>
         Public HintText As String = ""
+        Public InputMaxLength As Integer = 1000
+        Public Sensitive As Boolean = False
+        Public ReadOnly Property InputResultLogText As String
+            Get
+                Return If(Sensitive, "[已隐藏]", If(Result, "null").ToString())
+            End Get
+        End Property
         ''' <summary>
         ''' 有多个按钮时，是否给第一个按钮加高亮。
         ''' </summary>
@@ -283,9 +290,10 @@ EndHint:
     ''' <param name="Button1">显示的第一个按钮，默认为“确定”。</param>
     ''' <param name="Button2">显示的第二个按钮，默认为“取消”。</param>
     ''' <param name="IsWarn">是否为警告弹窗，若为 True，弹窗配色和背景会变为红色。</param>
-    Public Function MyMsgBoxInput(Title As String, Optional Text As String = Nothing, Optional DefaultInput As String = Nothing, Optional ValidateRules As Collection(Of Validate) = Nothing, Optional HintText As String = "", Optional Button1 As String = "确定", Optional Button2 As String = "取消", Optional IsWarn As Boolean = False) As String
+    Public Function MyMsgBoxInput(Title As String, Optional Text As String = Nothing, Optional DefaultInput As String = Nothing, Optional ValidateRules As Collection(Of Validate) = Nothing, Optional HintText As String = "", Optional Button1 As String = "确定", Optional Button2 As String = "取消", Optional IsWarn As Boolean = False, Optional MaxLength As Integer = 1000, Optional Sensitive As Boolean = False) As String
         '将弹窗列入队列
-        Dim Converter As New MyMsgBoxConverter With {.Text = If(Text, ""), .HintText = If(HintText, ""), .Type = MyMsgBoxType.Input, .ValidateRules = If(ValidateRules, New Collection(Of Validate)), .Button1 = Button1, .Button2 = Button2, .Content = DefaultInput, .IsWarn = IsWarn, .Title = Title}
+        If MaxLength < 1 OrElse MaxLength > 65536 Then Throw New ArgumentOutOfRangeException(NameOf(MaxLength))
+        Dim Converter As New MyMsgBoxConverter With {.Text = If(Text, ""), .HintText = If(HintText, ""), .Type = MyMsgBoxType.Input, .ValidateRules = If(ValidateRules, New Collection(Of Validate)), .Button1 = Button1, .Button2 = Button2, .Content = DefaultInput, .IsWarn = IsWarn, .Title = Title, .InputMaxLength = MaxLength, .Sensitive = Sensitive}
         WaitingMyMsgBox.Enqueue(Converter)
         '虽然我也不知道这是啥但是能用就成了 :)
         Try
@@ -296,7 +304,7 @@ EndHint:
         Finally
             ComponentDispatcher.PopModal()
         End Try
-        Logger.Info($"输入弹框返回：{If(Converter.Result, "null")}")
+        Logger.Info($"输入弹框返回：{Converter.InputResultLogText}")
         Return Converter.Result
     End Function
     ''' <summary>
@@ -984,22 +992,7 @@ NextFile:
 
     '遥测
     Public Sub Telemetry([Event] As String, ParamArray Datas As String())
-        If BuildType = BuildTypes.Debug Then Return '开发版不上传遥测
-        If Not Settings.Get(Of Boolean)("SystemSystemTelemetry") Then Return '用户关闭了遥测
-        If Not ClsBaseUrl.StartsWithF("http") Then Return '开源版没有设置遥测地址
-        RunInNewThread(
-        Sub()
-            Try
-                Logger.Info($"匿名数据上报：{[Event]}")
-                Dim Url As String = $"{ClsBaseUrl}&Event={StringUtils.UrlEscape([Event])}"
-                For i = 0 To Datas.Length - 1 Step 2
-                    Url &= "&" & StringUtils.UrlEscape(Datas(i)) & "=" & StringUtils.UrlEscape(Datas(i + 1).ReplaceLineEndings(vbLf, mergeMultiple:=True))
-                Next
-                NetRequestByClient(Url, MakeLog:=False)
-            Catch ex As Exception
-                Logger.Warn(ex, "匿名数据上报失败")
-            End Try
-        End Sub, "Telemetry", ThreadPriority.Lowest)
+        ' This fork has no telemetry backend. Ignore legacy preferences and all callers.
     End Sub
 
 #End Region

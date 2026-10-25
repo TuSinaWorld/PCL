@@ -4,19 +4,6 @@ Public Class PageSetupUI
         '重复加载部分
         PanBack.ScrollToHome()
         ThemeCheckAll(True)
-        If ThemeDontClick <> 0 Then
-            Dim NewText As String = Nothing
-            Select Case ThemeDontClick
-                Case 1
-                    NewText = "眼瞎白"
-                Case 2
-                    NewText = "真·滑稽彩"
-            End Select
-            For Each Control In PanLauncherTheme.Children
-                If (TypeOf Control Is MyRadioBox) AndAlso CType(Control, MyRadioBox).IsEnabled Then CType(Control, MyRadioBox).Text = NewText
-            Next
-        End If
-
         AniControlEnabled += 1
         Refresh() '#4826
         AniControlEnabled -= 1
@@ -27,15 +14,6 @@ Public Class PageSetupUI
         Reloaded = True
 
         SliderLoad()
-
-        If BuildType = BuildTypes.Release Then PanLauncherHide.Visibility = Visibility.Visible
-
-        '设置解锁
-        If Not RadioLauncherTheme8.IsEnabled Then LabLauncherTheme8Copy.ToolTip = $"累积赞助达到 ¥23.33 后，在爱发电私信发送【土豆 {Identify}】以解锁。" & vbCrLf & "右键打开赞助页面，如果觉得 PCL 做得还不错就支持一下吧 =w=！"
-        RadioLauncherTheme8.ToolTip = $"累积赞助达到 ¥23.33 后，在爱发电私信发送【土豆 {Identify}】以解锁"
-        If Not RadioLauncherTheme9.IsEnabled Then LabLauncherTheme9Copy.ToolTip = "· 反馈一个 Bug，在标记为 [完成] 后回复识别码要求解锁（右键打开反馈页面）" & vbCrLf & "· 提交一个 Pull Request 或主页预设，在标记为 [完成] 后回复识别码要求解锁"
-        RadioLauncherTheme9.ToolTip = "· 反馈一个 Bug，在标记为 [完成] 后回复识别码要求解锁" & vbCrLf & "· 提交一个 Pull Request 或主页预设，在标记为 [完成] 后回复识别码要求解锁"
-        '极客蓝的处理在 ThemeCheck 中
 
     End Sub
     Public Sub Refresh()
@@ -350,40 +328,6 @@ Refresh:
         End If
     End Sub
 
-    '主题
-    Private Sub LabLauncherTheme5Unlock_MouseLeftButtonUp(sender As Object, e As MouseButtonEventArgs) Handles LabLauncherTheme5Unlock.MouseLeftButtonUp
-        RadioLauncherTheme5Gray.Opacity -= 0.7
-        RadioLauncherTheme5.Opacity += 0.7
-        AniStart({
-            AaOpacity(RadioLauncherTheme5Gray, 1, 1000 * AniSpeed, 500 * AniSpeed, New AniEaseInFluent),
-            AaOpacity(RadioLauncherTheme5, -1, 1000 * AniSpeed, 500 * AniSpeed, New AniEaseInFluent)
-        }, "ThemeUnlock")
-        If RadioLauncherTheme5Gray.Opacity < 0.02 Then
-            ThemeUnlock(5, UnlockHint:="隐藏主题 玄素黑 已解锁！")
-            AniStop("ThemeUnlock")
-            RadioLauncherTheme5.Checked = True
-        End If
-    End Sub
-    Private Sub LabLauncherTheme11Click_MouseLeftButtonUp() Handles LabLauncherTheme11Click.MouseLeftButtonUp, RadioLauncherTheme11.MouseRightButtonUp
-        If LabLauncherTheme11Click.Visibility = Visibility.Collapsed OrElse If(LabLauncherTheme11Click.ToolTip, "").ToString.Contains("点击") Then
-            If MyMsgBox(
-                "1. 不爬取或攻击相关服务或网站，不盗取相关账号，没有谜题可以或需要以此来解决。" & vbCrLf &
-                "2. 不得篡改或损毁相关公开信息，请尽量让它们保持原状。" & vbCrLf &
-                "3. 在你感到迷茫的时候，看看回声洞可能会给你带来惊喜。" & vbCrLf & vbCrLf &
-                "若违规，可能会被从任意相关群中踢出！",
-                "解密游戏的基本规则", "我知道了", "恕我拒绝") = 1 Then
-                MyMsgBox("你需要用自己的智慧来找到下一步的线索……" & vbCrLf &
-                         "初始线索：gnp.dorC61\60\20\0202\moc.x1xa.2s\\:sp" & "T".Lower & "th", "解密游戏") '防止触发病毒检测规则
-            End If
-        End If
-    End Sub
-    Private Sub LabLauncherTheme8Copy_MouseRightButtonUp() Handles LabLauncherTheme8Copy.MouseRightButtonUp, RadioLauncherTheme8.MouseRightButtonUp
-        OpenWebsite("https://meloong.com/afd/a/LTCat")
-    End Sub
-    Private Sub LabLauncherTheme9Copy_MouseRightButtonUp() Handles LabLauncherTheme9Copy.MouseRightButtonUp, RadioLauncherTheme9.MouseRightButtonUp
-        PageOtherLeft.TryFeedback()
-    End Sub
-
     '主题自定义
     Private Sub RadioLauncherTheme14_Change(sender As Object, e As RouteEventArgs) Handles RadioLauncherTheme14.Changed
         If RadioLauncherTheme14.Checked Then
@@ -411,6 +355,12 @@ Refresh:
     End Sub
     Private Sub HSL_Change() Handles SliderLauncherHue.Change, SliderLauncherLight.Change, SliderLauncherSat.Change, SliderLauncherDelta.Change
         If AniControlEnabled <> 0 OrElse SliderLauncherSat Is Nothing OrElse Not SliderLauncherSat.IsLoaded Then Return
+        If Not RadioLauncherTheme14.Checked Then Return
+        ' Save before rendering, independently of the slider's own Change-handler ordering.
+        Settings.Set("UiLauncherHue", SliderLauncherHue.Value)
+        Settings.Set("UiLauncherSat", SliderLauncherSat.Value)
+        Settings.Set("UiLauncherDelta", SliderLauncherDelta.Value)
+        Settings.Set("UiLauncherLight", SliderLauncherLight.Value)
         ThemeRefresh()
     End Sub
 
@@ -444,7 +394,7 @@ Refresh:
                 '顶部栏未被全部隐藏
                 FrmMain.PanTitleSelect.Visibility = Visibility.Visible
                 FrmMain.BtnTitleSelect1.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenPageDownload"), Visibility.Collapsed, Visibility.Visible)
-                FrmMain.BtnTitleSelect2.Visibility = Visibility.Collapsed 'If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenPageLink"), Visibility.Collapsed, Visibility.Visible)
+                FrmMain.BtnTitleSelect2.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenPageLink"), Visibility.Collapsed, Visibility.Visible)
                 FrmMain.BtnTitleSelect3.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenPageSetup"), Visibility.Collapsed, Visibility.Visible)
                 FrmMain.BtnTitleSelect4.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenPageOther"), Visibility.Collapsed, Visibility.Visible)
             End If
@@ -461,13 +411,13 @@ Refresh:
             If FrmSetupLeft IsNot Nothing Then
                 FrmSetupLeft.ItemLaunch.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenSetupLaunch"), Visibility.Collapsed, Visibility.Visible)
                 FrmSetupLeft.ItemUI.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenSetupUi"), Visibility.Collapsed, Visibility.Visible)
-                FrmSetupLeft.ItemLink.Visibility = Visibility.Collapsed 'If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenSetupLink"), Visibility.Collapsed, Visibility.Visible)
+                FrmSetupLeft.ItemLink.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenSetupLink"), Visibility.Collapsed, Visibility.Visible)
                 FrmSetupLeft.ItemSystem.Visibility = If(Not HiddenForceShow AndAlso Settings.Get(Of Boolean)("UiHiddenSetupSystem"), Visibility.Collapsed, Visibility.Visible)
                 '隐藏左边选择卡
                 Dim AvaliableCount As Integer = 0
                 If Not Settings.Get(Of Boolean)("UiHiddenSetupLaunch") Then AvaliableCount += 1
                 If Not Settings.Get(Of Boolean)("UiHiddenSetupUi") Then AvaliableCount += 1
-                'If Not Settings.Get(Of Boolean)("UiHiddenSetupLink") Then AvaliableCount += 1
+                If Not Settings.Get(Of Boolean)("UiHiddenSetupLink") Then AvaliableCount += 1
                 If Not Settings.Get(Of Boolean)("UiHiddenSetupSystem") Then AvaliableCount += 1
                 FrmSetupLeft.PanItem.Visibility = If(AvaliableCount < 2 AndAlso Not HiddenForceShow, Visibility.Collapsed, Visibility.Visible)
             End If

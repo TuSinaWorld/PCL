@@ -8,9 +8,6 @@ Friend Module ModSecret
     Public CurseForgeAPIKey As String = GetRecoveredSetting("PCL_CURSEFORGE_API_KEY", "")
     Public Const ClsBaseUrl As String = ""
 
-    ' Keep the behavior of the latest upstream release, independently of recovered service code.
-    Public Const RestrictMcDownload As Boolean = True
-
     Friend Function SecretCdnSign(UrlWithMark As String) As String
         If UrlWithMark Is Nothing Then Throw New ArgumentNullException(NameOf(UrlWithMark))
         If Not UrlWithMark.EndsWith("{CDN}", StringComparison.Ordinal) Then Return UrlWithMark

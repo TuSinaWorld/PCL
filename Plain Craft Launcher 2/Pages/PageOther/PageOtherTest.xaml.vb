@@ -157,7 +157,6 @@ Public Class PageOtherTest
         Select Case Score
             Case 100
                 Comment = "！今天也是充满好运的一天！"
-                If ThemeUnlock(13, False) Then Comment &= vbCrLf & "隐藏主题 欧皇彩 已解锁！"
             Case Is >= 90
                 Comment = "！好评如潮！"
             Case Is >= 65

@@ -13,6 +13,7 @@ Public Class MyMsgInput
             LabTitle.Text = Converter.Title
             LabText.Text = Converter.Text
             PanText.Visibility = If(Converter.Text = "", Visibility.Collapsed, Visibility.Visible)
+            TextArea.MaxLength = Converter.InputMaxLength
             TextArea.Text = Converter.Content
             TextArea.HintText = Converter.HintText
             TextArea.ValidateRules = Converter.ValidateRules

@@ -2,10 +2,14 @@ Imports System.Collections.ObjectModel
 Imports System.Globalization
 Imports System.Net.Sockets
 Imports System.Reflection
+Imports System.Threading
 Imports PCL
 
 Public Class PageLinkMain
-    Private Const INVITE_CODE_VERSION As Integer = 2
+    Private RoomInvite As ModLocalLink.LinkInvite
+    Private Shared LinkCancellation As CancellationTokenSource = New CancellationTokenSource()
+    Private ComponentPackage As ModLocalLink.ComponentPackage
+    Private ReadOnly ComponentRoot As String = Paths.AppDataThenName & "EasyTierFork\"
 
     '===============================
     '  状态机与前端页面
@@ -73,6 +77,7 @@ Public Class PageLinkMain
     '由任意状态切换到 Waiting
     Private Sub SwitchToWaiting(OldState As LinkStates)
         '加载器与进程状态
+        LinkCancellation.Cancel()
         LinkLoader.Cancel()
         SyncLock LinkLoader.LockState
             LinkLoader.State = LoadState.Waiting
@@ -101,18 +106,8 @@ Public Class PageLinkMain
         '基础信息
         IsServerSide = True
         ServerPort = Port
-        Dim GenerateRandomCode =
-        Function() As String
-            Dim Result As String = ""
-            For i = 1 To 5
-                Result &= RandomInteger(0, 35).ConvertRadix(36)
-            Next
-            Return Result.Replace("O", "0").Replace("I", "1")
-        End Function
-        NetworkName = $"P{ServerPort.ConvertRadix(16).PadLeft(4, "0"c)}-{GenerateRandomCode()}"
-        NetworkSecret = GenerateRandomCode()
-        DiscoverNodeID = -1
-        Logger.Info($"尝试创建房间，网络名 {NetworkName}，网络密码 {NetworkSecret}，端口 {ServerPort}")
+        RoomInvite = Nothing
+        Logger.Info($"尝试创建 fork 房间，端口 {ServerPort}")
         '启动
         ChangeState(LinkStates.Loading)
     End Sub
@@ -123,8 +118,8 @@ Public Class PageLinkMain
     ''' 输入邀请码，切换到联机页并立即加入房间。
     ''' </summary>
     Public Shared Sub Join() Handles PanSelectJoin.MouseLeftButtonUp
-        Dim Code As String = MyMsgBoxInput("输入邀请码", "输入房主发给你的邀请码。",
-            HintText:=If(String.IsNullOrEmpty(LastCode), "", "使用上一次的邀请码"))
+        Dim Code As String = MyMsgBoxInput("输入邀请码", "输入房主发给你的 PCLF1 邀请码，双方需使用兼容的 fork。",
+            HintText:=If(String.IsNullOrEmpty(LastCode), "", "使用上一次的邀请码"), MaxLength:=ModLocalLink.MaximumInviteLength, Sensitive:=True)
         If Not String.IsNullOrEmpty(LastCode) AndAlso Code IsNot Nothing AndAlso Code = "" Then Code = LastCode
         If Code Is Nothing Then Return
         Join(Code)
@@ -137,49 +132,24 @@ Public Class PageLinkMain
             Hint(ValidateResult, HintType.Red)
             Return
         End If
-        Code = FixCodeFormat(Code)
-        Logger.Info($"实际使用的邀请码：{Code}")
+        RoomInvite = ModLocalLink.DecodeInvite(Code)
         '基础信息
         IsServerSide = False
-        ServerPort = Code.Substring(1, 4).Upper.ConvertRadix(16, 10)
-        NetworkName = Code.Substring(0, 11)
-        NetworkSecret = Code.Substring(12, 5)
-        If Code.Substring(20, 3) = "000" Then
-            DiscoverNodeID = -2
-        Else
-            DiscoverNodeID = Code.Substring(20, 3).Upper.ConvertRadix(16, 10)
-        End If
-        Logger.Info($"尝试加入房间，网络名 {NetworkName}，网络密码 {NetworkSecret}，端口 {ServerPort}，发现节点 {DiscoverNodeID}")
+        ServerPort = RoomInvite.Port
+        NetworkName = RoomInvite.Network
+        NetworkSecret = RoomInvite.Secret
+        Logger.Info("尝试使用 PCLF1 邀请码加入 fork 房间")
         '启动
         LastCode = Code
         ChangeState(LinkStates.Loading)
     End Sub
     Public Shared Function ValidateCodeFormat(Code As String) As String
-        If Code Is Nothing Then Return "邀请码为空！"
-        Code = FixCodeFormat(Code)
-        '判断类型
-        If Not (Code.Length >= 14 AndAlso Code(0) = "P"c AndAlso Code(5) = "-"c AndAlso Code(11) = "-"c) Then
-            If Code.StartsWithF("U/") Then 'HMCL
-                Return "请让房主使用 PCL 创建房间！"
-            ElseIf Code.Length = 10 Then 'PCL CE
-                Return "请让房主使用非社区版的 PCL 创建房间！"
-            Else
-                Return "邀请码有误，请让房主使用 PCL 创建房间！"
-            End If
-        End If
-        '校验版本
-        If Code.Length >= 23 AndAlso Code(17) = "-"c AndAlso
-            Val(Code.Substring(18, 2)) > INVITE_CODE_VERSION Then Return "你的 PCL 版本太老了，请在更新 PCL 之后再联机！"
-        Return Nothing
-    End Function
-    Private Shared Function FixCodeFormat(Code As String) As String
-        Code = Code.Between("【", "】").Between("[", "]") '从完整消息中提取
-        Code = Code.Upper.Replace("O", "0").Replace("I", "1") '输入修正
-        '版本 1 兼容
-        If Code.Length >= 17 AndAlso (Code.Length < 23 OrElse (Code.Length >= 18 AndAlso Code(17) <> "-"c)) Then
-            Code = Code.Substring(0, 17) & "-0105E"
-        End If
-        Return Code
+        Try
+            ModLocalLink.DecodeInvite(Code)
+            Return Nothing
+        Catch ex As Exception
+            Return ex.Message
+        End Try
     End Function
 
     '自动加入
@@ -212,7 +182,11 @@ Public Class PageLinkMain
     '由 Waiting 或 Failed 状态切换到 Loading
     Private Sub SwitchToLoading(OldState As LinkStates)
         '清理变量
+        LinkCancellation.Cancel()
+        LinkCancellation = New CancellationTokenSource()
         Peers = Nothing
+        LocalPeerReady = False
+        NATType = NATTypes.Pending
         FailCount = 0
         '加载器与进程状态
         LinkLoader.Start(IsForceRestart:=True)
@@ -226,6 +200,7 @@ Public Class PageLinkMain
     '由 Loading 状态切换到 Failed
     Private Sub SwitchToFailed(OldState As LinkStates)
         '加载器与进程状态
+        LinkCancellation.Cancel()
         LinkLoader.Cancel()
         ProcessStop()
         'UI 更新
@@ -359,12 +334,11 @@ Public Class PageLinkMain
     Private Sub Copy() Handles BtnFinishCopy.Click
         Dim CodeText As String = $"在 PCL 启动器中输入邀请码【{GetInviteCode()}】，即可加入联机房间！"
         ClipboardSet(CodeText, False)
-        Settings.Set("LinkLastAutoJoinInviteCode", CodeText)
+        Settings.Set("LinkLastAutoJoinInviteCode", ModLocalLink.GetInviteFingerprint(CodeText))
         Hint("已复制邀请码！", HintType.Green)
     End Sub
     Private Function GetInviteCode() As String
-        Return $"{NetworkName}-{NetworkSecret}-{INVITE_CODE_VERSION.ToString.PadLeft(2, "0"c)}{ _
-            If(DiscoverNodeID = -1, 0, DiscoverNodeID).ConvertRadix(16).PadLeft(3, "0"c)}"
+        Return ModLocalLink.EncodeInvite(RoomInvite)
     End Function
 
     '复制 IP
@@ -405,11 +379,6 @@ Public Class PageLinkMain
     ''' </summary>
     Private ClientAddress As String = Nothing
     ''' <summary>
-    ''' 发现节点的 ID。
-    ''' 若必须设定自定义节点则为 -2；若等待选择则为 -1；选择回退节点则为 0；否则为对应节点的 ID。
-    ''' </summary>
-    Private DiscoverNodeID As Integer = -1
-    ''' <summary>
     ''' 网络信息。
     ''' </summary>
     Private NetworkName As String, NetworkSecret As String
@@ -425,92 +394,50 @@ Public Class PageLinkMain
 
     '1. 获取服务器配置
     Private Sub InitConfig(Task As LoaderTask(Of Integer, Integer))
-        UpdateLoadingPage("正在联网获取配置……", "联网获取配置")
-        ServerLoader.WaitForExit(LoaderToSyncProgress:=Task)
-        If ServerConfig Is Nothing Then Throw New Exception("无法从服务器获取配置")
-        If TypeOf ServerConfig("Link") IsNot JObject Then Throw New Exception("$当前服务器配置未提供联机功能。")
-        '检查是否已禁用联机功能
-        Dim DisableReason = ServerConfig("Link")?("DisableReason2")?.ToString
-        If Not String.IsNullOrEmpty(DisableReason) Then Throw New Exception("$" & DisableReason) 'TODO: 可能不会显示错误原因？
-        If CType(ServerConfig("Link"), JObject).ContainsKey("MinVersionCode") AndAlso
-           VersionCode < ServerConfig("Link")("MinVersionCode").ToObject(Of Integer) Then
-            Throw New Exception("$你的 PCL 版本太老了，请在更新 PCL 之后再联机！")
-        End If
+        UpdateLoadingPage("正在检查官方联机组件……", "检查联机组件")
+        LinkCancellation.Token.ThrowIfCancellationRequested()
+        ComponentPackage = ModLocalLink.PackageFor(ModLocalLink.NativeArchitecture())
+        PathEasyTier = ModLocalLink.InstalledDirectory(ComponentRoot, ComponentPackage) & "\"
+        System.IO.Directory.CreateDirectory(ComponentRoot)
     End Sub
 
     '2. 获取需要下载的文件
-    Private ServerVersion As Integer
     Private Sub InitPrepareDownload(Task As LoaderTask(Of Integer, List(Of NetFile)))
-        '获取 CPU 架构
-        UpdateLoadingPage("正在获取 CPU 架构……", "获取 CPU 架构")
-        Dim Architecture As String = GetType(String).Assembly.GetName().ProcessorArchitecture
-        Select Case Architecture
-            Case ProcessorArchitecture.X86
-                Architecture = "i686"
-            Case ProcessorArchitecture.Amd64
-                Architecture = "x86_64"
-            Case ProcessorArchitecture.Arm
-                Architecture = "arm64"
-            Case Else
-                Logger.Warn($"CPU 是不支持的 {Architecture} 架构，这可能会导致联机模块无法启动！")
-                Architecture = "arm64"
-        End Select
-        Logger.Info($"CPU 架构：{Architecture}")
-        Telemetry("联机开始")
-        '检查 EasyTier 版本
-        UpdateLoadingPage("正在检查联机模块版本……", "检查联机模块版本")
-        If Not (FileUtils.Exists(PathEasyTier & "联机模块 CLI.exe") AndAlso FileUtils.Exists(PathEasyTier & "联机模块.exe") AndAlso
-                FileUtils.Exists(PathEasyTier & "Packet.dll")) Then
-            Settings.Set("LinkEasyTierVersion", -1)
-        End If
-        Dim LocalVersion As Integer = Settings.Get(Of Integer)("LinkEasyTierVersion")
-        ServerVersion = ServerConfig("Link")("EasyTierVersion")
-        Dim RequiredFiles As New List(Of NetFile)
-        Logger.Info($"EasyTier 本地版本：{LocalVersion}，需求版本：{ServerVersion}")
-        If LocalVersion < ServerVersion Then
-            RequiredFiles.Add(New NetFile(
-                ServerConfig("Link")("Downloads").Select(Function(UrlEntry) UrlEntry.ToString.Replace("{arch}", Architecture)),
-                PathEasyTier & "EasyTier.zip",
-                New FileChecker With {.MinSize = 1024 * 1024 * 2}))
-        End If
-        '开始下载
-        UpdateLoadingPage("正在下载联机模块……", "下载联机模块")
-        Task.Output = RequiredFiles
+        LinkCancellation.Token.ThrowIfCancellationRequested()
+        Task.Output = New List(Of NetFile)
+        If ModLocalLink.IsInstalled(PathEasyTier.TrimEnd("\"c), ComponentPackage) Then Return
+        UpdateLoadingPage("正在下载 EasyTier 官方组件……", "下载联机组件")
+        Task.Output.Add(New NetFile({ComponentPackage.Url}, ComponentArchivePath,
+            New FileChecker With {.MinSize = 1024 * 1024, .Hash = ComponentPackage.Sha256}))
     End Sub
+
+    Private ReadOnly Property ComponentArchivePath As String
+        Get
+            Return System.IO.Path.Combine(ComponentRoot, "easytier-" & ComponentPackage.Architecture & "-v" & ModLocalLink.ComponentVersion & ".zip")
+        End Get
+    End Property
 
     '3. 启动联机模块
     Private Sub InitLaunch(Task As LoaderTask(Of Integer, Integer))
-        '解压文件
-        UpdateLoadingPage("正在解压联机模块……", "解压联机模块")
-        If FileUtils.Exists(PathEasyTier & "EasyTier.zip") Then
-            '解压
-            Dim ExtractPath As String = RequestTaskTempFolder()
-            'FileUtils.ExtractToDirectory(PathEasyTier & "EasyTier.zip", ExtractPath,
-            '    progressHandler:=Sub(Percentage) Task.Progress = Percentage * 0.05)
-            DirectoryUtils.Copy(DirectoryUtils.EnumerateDirectories(ExtractPath, True).First, PathEasyTier)
-            '重命名
-            FileUtils.Move(PathEasyTier & "easytier-core.exe", PathEasyTier & "联机模块.exe")
-            FileUtils.Move(PathEasyTier & "easytier-cli.exe", PathEasyTier & "联机模块 CLI.exe")
-            '清理
-            FileUtils.Delete(PathEasyTier & "EasyTier.zip")
-            Settings.Set("LinkEasyTierVersion", ServerVersion)
+        UpdateLoadingPage("正在校验和安装联机组件……", "安装联机组件")
+        Dim Token = LinkCancellation.Token
+        Token.ThrowIfCancellationRequested()
+        If Not ModLocalLink.IsInstalled(PathEasyTier.TrimEnd("\"c), ComponentPackage) Then
+            PathEasyTier = ModLocalLink.InstallPackage(ComponentArchivePath, ComponentRoot, ComponentPackage, Token) & "\"
         End If
         Task.Progress = 0.07
-        '获取节点列表
-        UpdateLoadingPage("正在获取节点列表……", "获取节点列表")
+        UpdateLoadingPage("正在选择联机节点……", "选择联机节点")
         Dim RawPeers As List(Of String)
-        Dim CustomPeers As String = Settings.Get(Of String)("LinkCustomPeer")
-        If String.IsNullOrWhiteSpace(CustomPeers) Then
-            If DiscoverNodeID = -2 AndAlso Not IsServerSide Then
-                Panic("未填写自定义节点设置", $"$你必须在 {vbLQ}自定义节点{vbRQ} 设置中填写与房主相同的内容，{vbCrLf}才能进入该房间！")
-                Return
-            End If
-            RawPeers = GetTargetPeers()
+        If IsServerSide Then
+            Dim CustomPeers = Settings.Get(Of String)("LinkCustomPeer")
+            RawPeers = If(String.IsNullOrWhiteSpace(CustomPeers), GetTargetPeers(), ModLocalLink.ParseCustomPeers(CustomPeers))
+            RoomInvite = ModLocalLink.CreateInvite(ServerPort, RawPeers)
+            NetworkName = RoomInvite.Network
+            NetworkSecret = RoomInvite.Secret
         Else
-            If DiscoverNodeID <> -2 AndAlso Not IsServerSide Then Hint("房主可能没有使用自定义节点设置，请确认你们的自定义节点设置是否一致！")
-            RawPeers = CustomPeers.Split("，,".ToCharArray).Select(Function(p) p.Trim).Where(Function(p) Not String.IsNullOrEmpty(p)).ToList()
-            Logger.Info($"使用自定义节点：{CustomPeers}")
+            RawPeers = ModLocalLink.NormalizePeers(RoomInvite.Peers)
         End If
+        Token.ThrowIfCancellationRequested()
         Task.Progress = 0.13
         '获取空闲端口
         UpdateLoadingPage("正在启动联机模块……", "启动联机模块")
@@ -519,7 +446,7 @@ Public Class PageLinkMain
         RPCPort = FreePorts(1)
         Dim ListenersPort As Integer = FreePorts(2) '它会占用【当前、当前 +1、当前 +2】共三个端口
         '获取启动参数
-        Dim Arguments As String = ServerConfig("Link")("Argument")
+        Dim Arguments As String = "--no-tun --use-smoltcp --disable-kcp-input --disable-quic-input --bind-device false"
         Arguments += $" --network-name={NetworkName} --network-secret={NetworkSecret} --listeners {ListenersPort} --rpc-portal {RPCPort} --private-mode true"
         Dim HostName = If(IsServerSide, "Server-", "Client-") & Identify.GetStableHashCode().ConvertRadix(36).TrimStart("-"c).EnsureLength("0", 6)
         If IsServerSide Then
@@ -538,19 +465,22 @@ Public Class PageLinkMain
         Next
         If Settings.Get(Of Integer)("LinkLatencyMode") = 1 Then Arguments += " --latency-first"
         '启动进程
-        ProcessStart(Arguments)
+        ProcessStart(Arguments, Token)
         Task.Progress = 0.15
         '等待连接
         Dim TimeoutCounter As Integer = 0
+        Dim ConnectClock = System.Diagnostics.Stopwatch.StartNew()
         Do
+            Token.ThrowIfCancellationRequested()
+            If ConnectClock.ElapsedMilliseconds > 90000 Then Throw New TimeoutException("建立联机连接超时，请重试或更换节点。")
             Thread.Sleep(500) '为避免还没启动好先跑 CLI 了，先等半秒
             '刷新信息
             CheckCrash()
             RefreshPeerLoader.WaitForExit(IsForceRestart:=True)
             '查找目标节点
             Dim Ping = GetPeerPing()
-            If Ping > 0 Then
-                Logger.Info($"已与目标建立连接，当前 Ping 为 {Ping:0.0}ms")
+            If ModLocalLink.CanFinishRoom(IsServerSide, LocalPeerReady, Ping) Then
+                Logger.Info(If(IsServerSide, "房间已准备，等待玩家加入", $"已与房主建立连接，当前 Ping 为 {Ping:0.0}ms"))
                 Telemetry("联机成功", "Server", IsServerSide, "NAT", NATType)
                 Exit Do '退出循环
             End If
@@ -575,7 +505,7 @@ Public Class PageLinkMain
             Else '进度停滞超过 30s
                 Select Case PeerCount
                     Case -1 'CLI 无返回
-                        Panic("无法启动联机模块", "近期日志：" & vbCrLf & LogHistory.Join(vbCrLf))
+                        Panic("无法启动联机模块", "近期日志：" & vbCrLf & RecentLog())
                     Case 0 'CLI 有返回，但未连接到任何节点
                         Panic("无法连接到节点", $"请检查你的网络环境是否良好。")
                     Case Else '已连接到节点，但未连接到房主
@@ -603,92 +533,35 @@ Public Class PageLinkMain
     '''   >0：作为加入者，根据 ID 选择对应的发现节点；如果没有，使用回退发现节点。
     ''' </summary>
     Private Function GetTargetPeers() As List(Of String)
-        Dim FinalPeers As New List(Of String), FinalDiscoverID As Integer = -1
-        Dim FallbackDiscoverID = ServerConfig("Link")("DiscoverPeerId").ToObject(Of Integer)
-        Dim FallbackDiscoverAddress As String = ServerConfig("Link")("DiscoverPeer").ToString()
+        Dim Token = LinkCancellation.Token
+        Dim CachePath = System.IO.Path.Combine(ComponentRoot, "public-peers.json")
         Try
-            '从 API 获取节点列表
-            Dim RawNodes As JObject
-            Dim IsFallbackRawList As Boolean = False
+            Dim Selected = ModLocalLink.SelectPublicPeers(ModLocalLink.FetchPublicNodes(Token))
+            Token.ThrowIfCancellationRequested()
             Try
-                RawNodes = NetRequestByClient("https://uptime.easytier.cn/api/nodes?page=1&per_page=1000", RequireJson:=True).DeserializeJson()
-            Catch exx As Exception
-                Logger.Warn(exx, "从源站获取节点列表失败，将使用 CDN 缓存")
-                RawNodes = NetRequestByClientRetry("https://easytier.meloong.com/?page=1&per_page=1000", RequireJson:=True).DeserializeJson()
-                IsFallbackRawList = True
+                Dim Cache = New JObject(New JProperty("utc", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture)), New JProperty("peers", New JArray(Selected)))
+                Dim Pending = CachePath & "." & Guid.NewGuid().ToString("N") & ".pending"
+                System.IO.File.WriteAllText(Pending, Cache.ToString(Formatting.None), New UTF8Encoding(False))
+                System.IO.File.Copy(Pending, CachePath, True)
+                System.IO.File.Delete(Pending)
+            Catch
+                Logger.Warn("保存公共联机节点缓存失败")
             End Try
-            '分析节点列表
-            Dim Nodes As New List(Of JObject) '负载会添加在 load 字段上
-            Dim BlackList As List(Of String) = ServerConfig("Link")("PeersBlackList").Select(Function(p) p.ToString).ToList()
-            For Each Node As JObject In RawNodes("data")("items")
-                '状态检查
-                Dim ID = Node("id").ToObject(Of Integer)
-                If Not Node("is_active").ToObject(Of Boolean) OrElse Not Node("is_approved").ToObject(Of Boolean) Then Continue For
-                If ID = DiscoverNodeID Then GoTo ForcedPass '若为指定的发现节点，忽略后续检查
-                If ID = FallbackDiscoverID Then Continue For '不主动选取回退发现节点
-                If BlackList.Contains(Node("address").ToString) Then Continue For 'ServerConfig 黑名单
-                If Node("usage_percentage").ToObject(Of Double) = 0 AndAlso RandomInteger(1, 100) <> 1 Then Continue For '或许节点有问题才导致是 0 负载，让它只有 1% 概率被选中
-                '标签检查
-                Dim Tags = Node("tags").Select(Function(t) t.ToString).ToList
-                If Not Tags.Contains("国内") OrElse Not Tags.Contains("MC中继") Then Continue For
-                '计算负载并加入列表
-ForcedPass:
-                Dim Load As Double = Node("usage_percentage").ToObject(Of Double) '负载
-                Load *= 110 - Node("health_percentage_24h").ToObject(Of Double) '可用率
-                Node("load") = Load
-                Nodes.Add(Node)
-            Next
-            '排序
-            If Not IsFallbackRawList Then
-                Nodes = Nodes.OrderBy(Function(n) n("load").ToObject(Of Double)).ToList() '按负载从低到高排序
-            Else
-                Nodes = Nodes.Shuffle().ToList() '回退到 CDN 缓存时，由于负载数据可能过期，直接随机选择
-            End If
-            '选取发现节点
-            Dim SelectedDiscoverNode As JObject = Nothing
-            If DiscoverNodeID = -1 Then '-1：作为房主，根据负载均衡选择一个发现节点
-                SelectedDiscoverNode = Nodes.FirstOrDefault(Function(n) Not n("allow_relay").ToObject(Of Boolean))
-            ElseIf DiscoverNodeID > 0 Then '>0：作为加入者，根据 ID 选择对应的发现节点；如果没有，使用回退发现节点
-                SelectedDiscoverNode = Nodes.FirstOrDefault(Function(n) n("id").ToObject(Of Integer) = DiscoverNodeID)
-                If SelectedDiscoverNode Is Nothing Then
-                    Logger.Warn($"未找到 ID {DiscoverNodeID} 的发现节点")
-                    Panic("房间已过期", "请让房主重新创建房间！")
-                    Throw New OperationCanceledException
-                End If
-            End If
-            If SelectedDiscoverNode Is Nothing Then '使用回退发现节点
-                SelectedDiscoverNode = New JObject From {{"address", FallbackDiscoverAddress}, {"id", FallbackDiscoverID}}
-                Logger.Warn("将使用回退发现节点")
-            End If
-            FinalPeers.Add(SelectedDiscoverNode("address").ToString())
-            FinalDiscoverID = SelectedDiscoverNode("id").ToObject(Of Integer)
-            Logger.Info($"发现节点：{SelectedDiscoverNode("address")} (ID: {FinalDiscoverID})")
-            '选取中继节点
-            If ModeDebug OrElse Not IsServerSide Then '房主只连接发现节点，不连接中继节点
-                Dim RelayCount As Integer = ServerConfig("Link")("RandomPeer").ToObject(Of Integer)
-                Dim RelayNodes = Nodes.Where(Function(n) n("allow_relay").ToObject(Of Boolean)).ToList()
-                If RelayNodes.Count < RelayCount Then Throw New Exception($"可用的中继节点数量不足，需要 {RelayCount} 个，实际 {RelayNodes.Count} 个")
-                FinalPeers.AddRange(RelayNodes.Take(RelayCount).Select(Function(n) n("address").ToString()))
-            End If
+            Return Selected
         Catch ex As Exception
-            ex.ThrowIfCanceled()
-            Logger.Error(ex, "获取节点列表失败，联机质量可能受到影响", LogBehavior.Toast)
-            FinalPeers.AddRange(ServerConfig("Link")("Peers").Select(Function(p) p.ToString))
-            If FinalDiscoverID <= 0 Then
-                FinalPeers.Add(FallbackDiscoverAddress)
-                FinalDiscoverID = FallbackDiscoverID
-            End If
+            Token.ThrowIfCancellationRequested()
+            Logger.Warn("公共联机节点清单暂不可用，尝试最近缓存")
+            Try
+                If Not System.IO.File.Exists(CachePath) OrElse New System.IO.FileInfo(CachePath).Length > 16384 Then Throw New IOException()
+                Dim Cache = JObject.Parse(System.IO.File.ReadAllText(CachePath))
+                Dim At As DateTime
+                If Not DateTime.TryParse(CStr(Cache("utc")), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, At) OrElse
+                   At.ToUniversalTime() > DateTime.UtcNow.AddMinutes(5) OrElse At.ToUniversalTime() < DateTime.UtcNow.AddDays(-7) Then Throw New IOException()
+                Return ModLocalLink.NormalizePeers(CType(Cache("peers"), JArray).Values(Of String)())
+            Catch
+                Throw New IOException("无法获取公共节点，且没有七天内可用的缓存。请稍后重试，或在联机设置中填写自定义 EasyTier 节点。")
+            End Try
         End Try
-        '版本 1 兼容
-        If CType(ServerConfig("Link"), JObject).ContainsKey("EnableForcedPeer") Then
-            FinalPeers.Add("tcp://mc1.easytier.cn:55558")
-            If FinalDiscoverID <= 0 Then FinalDiscoverID = 94
-        End If
-        '强制添加的节点
-        FinalPeers.AddRange(ServerConfig("Link")("MandatoryPeers").Select(Function(p) p.ToString))
-        '结束
-        DiscoverNodeID = FinalDiscoverID
-        Return FinalPeers.Distinct.ToList
     End Function
 
 #End Region
@@ -699,39 +572,28 @@ ForcedPass:
     ''' EasyTier Core 进程。
     ''' </summary>
     Private Shared ProcessCore As Process
-    Private Shared ProcessOutputHandle As AutoResetEvent, ProcessErrorHandle As AutoResetEvent
+    Private Shared ReadOnly ProcessLock As New Object
 
     ''' <summary>
     ''' 若程序正在运行，则结束程序进程。
     ''' 即使失败也不会抛出异常。
     ''' </summary>
     Public Shared Sub ProcessStop()
-        Try
-            '关闭未捕获的进程
-            For Each ProcessObject In Process.GetProcesses
-                If ProcessObject.Id = ProcessCore?.Id Then Continue For
-                If ProcessObject.ProcessName <> "联机模块" AndAlso ProcessObject.ProcessName <> "联机模块 CLI" Then Continue For
-                Try
-                    Logger.Info($"停止残留的联机模块，PID：{ProcessObject.Id}，进程名：{ProcessObject.ProcessName}")
-                    ProcessObject.Kill()
-                    ProcessObject.Close()
-                Catch exx As Exception
-                    Logger.Warn(exx, $"结束进程失败（{ProcessObject.ProcessName}，PID {ProcessObject.Id}）")
-                End Try
-            Next
-            '关闭由自身启动的进程
-            If ProcessCore IsNot Nothing AndAlso Not ProcessCore.HasExited Then
-                Logger.Info($"停止所启动的联机模块，PID：{ProcessCore.Id}")
-                ProcessCore.Kill()
-                ProcessCore.Close()
-                ProcessCore = Nothing
-            End If
-            '释放资源
-            ProcessOutputHandle?.Dispose()
-            ProcessErrorHandle?.Dispose()
-        Catch ex As Exception
-            Logger.Warn(ex, "停止联机模块失败")
-        End Try
+        LinkCancellation.Cancel()
+        SyncLock ProcessLock
+            Try
+                If ProcessCore IsNot Nothing Then
+                    If Not ProcessCore.HasExited Then
+                        ProcessCore.Kill()
+                        ProcessCore.WaitForExit(2000)
+                    End If
+                    ProcessCore.Dispose()
+                    ProcessCore = Nothing
+                End If
+            Catch ex As Exception
+                Logger.Warn("停止本次联机组件失败")
+            End Try
+        End SyncLock
     End Sub
     ''' <summary>
     ''' 出现意外错误，给出错误信息并结束联机。
@@ -755,10 +617,11 @@ ForcedPass:
     ''' <summary>
     ''' 启动进程。
     ''' </summary>
-    Private Sub ProcessStart(Arguments As String)
+    Private Sub ProcessStart(Arguments As String, Token As CancellationToken)
         Dim Info = New ProcessStartInfo With {
-            .FileName = PathEasyTier & "联机模块.exe",
+            .FileName = PathEasyTier & "easytier-core.exe",
             .Arguments = Arguments,
+            .WorkingDirectory = PathEasyTier,
             .UseShellExecute = False,
             .CreateNoWindow = True,
             .RedirectStandardError = True,
@@ -766,34 +629,58 @@ ForcedPass:
             .StandardOutputEncoding = Encoding.UTF8,
             .StandardErrorEncoding = Encoding.UTF8
         }
-        Logger.Info($"正在启动 EasyTier：{Arguments}")
-        ProcessCore = New Process With {.StartInfo = Info}
-        Dim LogLineHandler =
-        Sub(sender As Object, e As DataReceivedEventArgs, Handle As AutoResetEvent)
+        For Each Key As String In Info.EnvironmentVariables.Keys.Cast(Of String)().Where(Function(K) K.StartsWith("ET_", StringComparison.OrdinalIgnoreCase)).ToList()
+            Info.EnvironmentVariables.Remove(Key)
+        Next
+        Dim SecretAtStart = NetworkSecret, NameAtStart = NetworkName
+        Dim Child As New Process With {.StartInfo = Info}
+        Dim LogLineHandler As DataReceivedEventHandler =
+            Sub(sender As Object, e As DataReceivedEventArgs)
+                If e.Data Is Nothing Then Return
+                Try
+                    ProcessLogLine(e.Data, SecretAtStart, NameAtStart)
+                Catch
+                    Logger.Warn("读取联机组件日志失败")
+                End Try
+            End Sub
+        AddHandler Child.OutputDataReceived, LogLineHandler
+        AddHandler Child.ErrorDataReceived, LogLineHandler
+        SyncLock ProcessLock
+            If Token.IsCancellationRequested Then Child.Dispose()
+            Token.ThrowIfCancellationRequested()
+            If ProcessCore IsNot Nothing Then
+                Child.Dispose()
+                Throw New InvalidOperationException("前一次联机尚未结束，请稍后重试。")
+            End If
+            ProcessCore = Child
+            Dim Started As Boolean = False
             Try
-                If e.Data Is Nothing Then
-                    Handle.[Set]()
-                    Return
-                End If
-                ProcessLogLine(e.Data)
-            Catch unused As ObjectDisposedException
-            Catch ex As Exception
-                Logger.Warn(ex, "读取 EasyTier 信息失败")
+                Logger.Info("正在启动 EasyTier 官方组件（房间密钥已隐藏）")
+                Started = Child.Start()
+                Child.BeginOutputReadLine()
+                Child.BeginErrorReadLine()
+            Catch
+                Try
+                    If Started AndAlso Not Child.HasExited Then Child.Kill()
+                Finally
+                    Child.Dispose()
+                    ProcessCore = Nothing
+                End Try
+                Throw
             End Try
-        End Sub
-        ProcessOutputHandle = New AutoResetEvent(False)
-        AddHandler ProcessCore.OutputDataReceived, Sub(sender, e) LogLineHandler(sender, e, ProcessOutputHandle)
-        ProcessErrorHandle = New AutoResetEvent(False)
-        AddHandler ProcessCore.ErrorDataReceived, Sub(sender, e) LogLineHandler(sender, e, ProcessErrorHandle)
-        ProcessCore.Start()
-        ProcessCore.BeginOutputReadLine()
-        ProcessCore.BeginErrorReadLine()
+        End SyncLock
     End Sub
-    Private Sub ProcessLogLine(Line As String)
+    Private Sub ProcessLogLine(Line As String, SecretAtStart As String, NameAtStart As String)
         '记录日志
+        If Not String.IsNullOrEmpty(SecretAtStart) Then Line = Line.Replace(SecretAtStart, "[已隐藏]")
+        If Not String.IsNullOrEmpty(NameAtStart) Then Line = Line.Replace(NameAtStart, "[房间]")
+        Line = Line.RegexReplace("PCLF1:[A-Za-z0-9_-]+", "[邀请码已隐藏]")
+        If Line.Length > 4096 Then Line = Line.Substring(0, 4096)
         Logger.Info(Line)
-        LogHistory.Enqueue(Line)
-        If LogHistory.Count >= 10 Then LogHistory.Dequeue()
+        SyncLock LogHistory
+            LogHistory.Enqueue(Line)
+            If LogHistory.Count > 10 Then LogHistory.Dequeue()
+        End SyncLock
         '检查日志内容
         If Line.ContainsIgnoreCase("new peer connection added") Then
             Logger.Warn($"已建立连接：{If(Line.RegexSeek("(?<=remote_addr.+?"")[^""}]{3,}"), Line)}")
@@ -804,6 +691,11 @@ ForcedPass:
         End If
     End Sub
     Private LogHistory As New Queue(Of String)(10)
+    Private Function RecentLog() As String
+        SyncLock LogHistory
+            Return String.Join(vbCrLf, LogHistory.ToArray())
+        End SyncLock
+    End Function
 
 #End Region
 
@@ -869,7 +761,7 @@ ForcedPass:
             Double.TryParse(Info("lat_ms"), NumberStyles.Any, CultureInfo.InvariantCulture, Ping)
             Name = PeerName
             Relay = Info("cost").ToString.ContainsIgnoreCase("relay")
-            NATType = EnumUtils.FromString(Of NATTypes)(Info("nat_type"))
+            If Not [Enum].TryParse(Info("nat_type").ToString(), True, NATType) Then NATType = NATTypes.Unknown
         End Sub
         Public Overrides Function ToString() As String
             Return $"{Type} - {Name} - Ping {Ping:0.0}ms [中继? {Relay}] - NAT {NATType}"
@@ -898,6 +790,7 @@ ForcedPass:
     ''' 若尚未成功获取过则为 Nothing，但保证在加载完成后至少是一个列表。
     ''' </summary>
     Private Peers As List(Of Peer) = Nothing
+    Private LocalPeerReady As Boolean
     ''' <summary>
     ''' 自己的 NAT 类型。
     ''' </summary>
@@ -906,17 +799,19 @@ ForcedPass:
     ''' <summary>
     ''' 调用 EasyTier CLI 获取已连接节点信息。
     ''' 这会过滤掉尚未完成连接的其他节点以及自己。
-    ''' 若在加载完成后连续获取失败 3 次，则会强制断开连接。
+    ''' 若在加载完成后连续获取失败 4 次，则会强制断开连接。
     ''' </summary>
     Private RefreshPeerLoader As New LoaderTask(Of Integer, List(Of Peer))("EasyTier CLI", AddressOf RefreshPeer)
     Private Sub RefreshPeer()
         Try
-            Dim CliResult = "" 'StartProcessAndGetOutput(PathEasyTier & "联机模块 CLI.exe", $"-o json -p 127.0.0.1:{RPCPort} peer", 2000, Encoding:=Encoding.UTF8, PrintLog:=False)
+            Dim Token = LinkCancellation.Token
+            Dim CliResult = ModLocalLink.RunCli(PathEasyTier & "easytier-cli.exe", RPCPort, Token)
             '解析
-            If Not CliResult.Contains("lat_ms") Then Throw New Exception("CLI 调用失败：" & vbCrLf & CliResult)
-            If GetUuid() Mod If(ModeDebug, 23, 103) = 0 Then Logger.Info($"CLI 输出抽样：{vbCrLf}{CliResult}")
+            Dim Rows = ModLocalLink.ParseCliPeers(CliResult)
+            Token.ThrowIfCancellationRequested()
+            Dim HasLocal = ModLocalLink.HasLocalPeer(Rows)
             Dim NewPeers As New List(Of Peer)
-            For Each Line As JObject In CType(CliResult.DeserializeJson(), JArray)
+            For Each Line As JObject In Rows
                 Try
                     Dim Peer = New Peer(Line)
                     If Peer.Type = Peer.Types.Self Then
@@ -925,17 +820,19 @@ ForcedPass:
                         NewPeers.Add(Peer)
                     End If
                 Catch exx As Exception
-                    Logger.Warn(exx, $"错误的信息（{Line}）")
+                    Logger.Warn("忽略格式无效的联机节点信息")
                 End Try
             Next
             '完成
             Peers = NewPeers
+            LocalPeerReady = HasLocal
             FailCount = 0
         Catch ex As Exception
-            Logger.Warn(ex, "获取节点信息失败")
+            If LinkCancellation.IsCancellationRequested Then Return
+            Logger.Warn("获取节点信息失败：" & ex.GetType().Name)
             If LinkState = LinkStates.Finished Then
                 FailCount += 1
-                If FailCount >= 4 Then Panic("获取节点信息失败", ex.Message)
+                If FailCount >= 4 Then Panic("获取节点信息失败", "联机组件连续四次未返回有效节点信息，请重试。")
             End If
         End Try
     End Sub
@@ -1029,7 +926,9 @@ ForcedPass:
                 'Ping
                 Dim Ping As Double = GetPeerPing()
                 Dim Connecting As Boolean = Ping Mod 500 = 0 OrElse $"{Ping:0.0}" = "1.0" OrElse FailCount > 0
-                If Connecting Then
+                If IsServerSide AndAlso PeopleCount <= 1 Then
+                    LabFinishPing.Text = "等待玩家"
+                ElseIf Connecting Then
                     LabFinishPing.Text = "连接优化中"
                 Else
                     LabFinishPing.Text = If(Ping >= 10, $"{Ping:0} ms", $"{Ping:0.0} ms")
@@ -1079,7 +978,7 @@ ForcedPass:
         '检查核心状态
         CheckCrash()
         '检查节点状态
-        If Not Peers.Any Then
+        If Not IsServerSide AndAlso (Peers Is Nothing OrElse Not Peers.Any) Then
             Panic("网络连接已断开", "请检查你的网络环境是否正常。")
             Return
         End If
@@ -1105,8 +1004,11 @@ ForcedPass:
     ''' 检查联机模块是否崩溃。
     ''' </summary>
     Private Sub CheckCrash()
-        If ProcessCore IsNot Nothing AndAlso Not ProcessCore.HasExited Then Return
-        Panic("联机模块已崩溃", "近期日志：" & vbCrLf & LogHistory.Join(vbCrLf))
+        If LinkCancellation.IsCancellationRequested Then Return
+        SyncLock ProcessLock
+            If ProcessCore IsNot Nothing AndAlso Not ProcessCore.HasExited Then Return
+        End SyncLock
+        Panic("联机模块已崩溃", "近期日志：" & vbCrLf & RecentLog())
     End Sub
 
 #End Region

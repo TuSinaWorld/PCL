@@ -1,9 +1,7 @@
-# 更新与联网配置隔离检查
+# 禁用后端行为检查
 
-Windows / .NET Framework 4.8 环境中运行 `./Run.ps1` 执行本组 25 项断言，或从仓库根目录运行 `./tests/Run-RecoveredChecks.ps1` 执行全部三组检查。统一入口为各组创建独立进程，只保留 Windows 必需环境变量，并使用空配置夹具隔离继承凭据；详细说明见 `../README.md`。
+运行 `./Run.ps1`，或使用统一入口 `./tests/Run-RecoveredChecks.ps1`。
 
-本组检查直接编译生产 `ModRecoveredUpdate.vb` / `ModRecoveredServer.vb`，Option Strict On，无源码转换。UI、网络、Loader 与应用上下文使用 stub；验证默认不联网及不自动更新、版本与设置条件、自建 JSON、同来源缓存回退及换来源隔离、相对 URL、ZIP entry 固定输出和错误 SHA256 拒绝。
+本组直接编译生产 `ModRecoveredUpdate.vb` 与 `ModRecoveredServer.vb`，Option Strict On，不转换生产源码。使用合成旧服务 URL、带公告/更新的缓存、当前 EXE 夹具和替换目标，验证即使旧配置存在也不会请求、修改设置、消费更新文件或替换程序；保留的导出兼容入口必须逐字节复制当前 EXE，并覆盖旧导出缓存。
 
-没有真实 HTTP、进程替换、native 补丁或目标 EXE 执行。用于 ZIP 和散列检查的程序集是测试自身生成的 checks.dll。依赖只使用仓库已有 Newtonsoft.Json.dll；不依赖 ILSpy、反编译输出或外部目录。
-
-编译日志、源文件散列、结果、程序集及测试 fixture 全部写入被忽略的 `bin/`。这是模块隔离验证，不代表真实应用整体构建或更新部署验证。
+共 18 项行为断言。网络计数器和禁止执行/浏览器/原生操作的 stub 用于发现意外动作。没有真实 HTTP、PCL 执行或 native 操作。编译日志、源码散列与 fixture 均写入被忽略的 `bin/`。这组替代此前支持自建配置和更新服务器的测试。

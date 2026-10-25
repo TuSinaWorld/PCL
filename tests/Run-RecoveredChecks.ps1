@@ -15,6 +15,11 @@ $suites = @(
     'RecoveredUpdateServer\Run.ps1',
     'RecoveredConfiguration\Run.ps1',
     'RecoveredToolbox\Run-Tests.ps1'
+    'LocalThemes\Run.ps1'
+    'LocalModpacks\Run.ps1'
+    'LocalLink\Run.ps1'
+    'LocalLinkNavigation\Run.ps1'
+    'LocalLinkInput\Run.ps1'
 )
 $results = @()
 foreach ($suite in $suites) {
@@ -62,4 +67,4 @@ foreach ($suite in $suites) {
     $results | ConvertTo-Json -Depth 3 | Set-Content -LiteralPath (Join-Path $runRoot 'result.json') -Encoding utf8
     if ($exitCode -ne 0) { throw "Recovered suite failed (exit $exitCode): $suite" }
 }
-Write-Output 'PASS: all three recovered suites exited 0. Detailed logs are in tests/bin and each suite bin directory.'
+Write-Output 'PASS: all recovered and local-function suites exited 0. Detailed logs are in tests/bin and each suite bin directory.'

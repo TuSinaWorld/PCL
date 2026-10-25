@@ -218,6 +218,7 @@
     <Compile Include="Modules\Minecraft\ModJava.vb" />
     <Compile Include="Modules\Resource\LocalResourceLoaders.vb" />
     <Compile Include="Modules\Minecraft\ModModpack.vb" />
+    <Compile Include="Modules\Minecraft\ModModpackPolicy.vb" />
     <Compile Include="Modules\ThirdParty\DragHelper.vb" />
     <Compile Include="My Project\Resources.Designer.vb">
       <AutoGen>True</AutoGen>
@@ -262,6 +263,7 @@
     <Compile Include="Modules\ModRecoveredServer.vb" />
     <Compile Include="Modules\ModRecoveredTheme.vb" />
     <Compile Include="Modules\ModRecoveredIdentity.vb" />
+    <Compile Include="Modules\ModLocalLink.vb" />
     <Compile Include="Pages\PageDownload\Resource\PageResource.xaml.vb">
       <DependentUpon>PageResource.xaml</DependentUpon>
     </Compile>

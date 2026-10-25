@@ -8,10 +8,6 @@ Public Module ModModpack
     ''' 弹窗要求选择一个整合包文件并进行安装。
     ''' </summary>
     Public Sub ModpackInstall()
-        If RestrictMcDownload Then
-            Hint("为遵守相关法律法规，PCL 暂时不再提供 MC 下载功能，非常抱歉 qwq……", HintType.Red)
-            Return
-        End If
         Dim File As String = Dialogs.SelectFile("选择整合包压缩文件", False, filter:={({"rar", "zip", "mrpack"}, "整合包文件")}).FirstOrDefault() '选择整合包文件
         If String.IsNullOrEmpty(File) Then Return
         RunInThread(
@@ -84,8 +80,9 @@ Public Module ModModpack
                     Throw New Exception("打开整合包文件失败，文件可能损坏或为不支持的压缩包格式", ex)
                 End If
             End Try
+            '先检查所有声明及内嵌版本、整合包，再创建安装任务或交接附带的启动器。
+            EnsureSupportedModpack(Archive)
             '执行对应的安装方法
-            If RestrictMcDownload Then Throw New Exception("为遵守相关法律法规，PCL 暂时不再提供 MC 下载功能，非常抱歉 qwq……")
             Select Case PackType
                 Case 0
                     Logger.Info("整合包种类：CurseForge")
@@ -715,10 +712,6 @@ Public Module ModModpack
             Addons.Add(Entry("id"), Entry("version"))
         Next
         If Not Addons.ContainsKey("game") Then Throw New Exception("该 MCBBS 整合包未提供游戏版本信息，无法安装！")
-        If Addons.ContainsKey("quilt") Then
-            Hint("PCL 不支持安装 Quilt 整合包！", HintType.Red)
-            Throw New OperationCanceledException
-        End If
         Dim ModLoaderVersions As New Dictionary(Of ModLoaders, String)
         If Addons.ContainsKey("forge") Then ModLoaderVersions(ModLoaders.Forge) = Addons("forge")
         If Addons.ContainsKey("neoforge") Then ModLoaderVersions(ModLoaders.NeoForge) = Addons("neoforge")
@@ -810,7 +803,9 @@ Public Module ModModpack
                     TargetFolder & ".minecraft\" & ArchiveBaseFolder.Replace("/", "\").TrimStart("\"), '格式例如：包裹文件夹\.minecraft\（最短为空字符串）
                     InstanceName, False)
                 '调用 modpack 文件进行安装
-                Dim ModpackFile = DirectoryUtils.EnumerateFiles(TargetFolder, True, "modpack.*").First
+                ' 使用与预检一致的候选规则，不能在此选中未检查的 modpack.rar 等文件。
+                Dim ModpackFile = DirectoryUtils.EnumerateFiles(TargetFolder, True).FirstOrDefault(Function(f) IsNestedModpackFile(f))
+                If ModpackFile Is Nothing Then Throw New InvalidDataException("压缩包中没有可安装的 modpack.zip 或 modpack.mrpack。")
                 Logger.Info($"调用 modpack 文件继续安装：{ModpackFile}")
                 ModpackInstall(ModpackFile)
             End Sub)

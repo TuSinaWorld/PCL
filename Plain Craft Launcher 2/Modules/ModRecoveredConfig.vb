@@ -21,11 +21,6 @@ Friend Module ModRecoveredConfig
             Case "PCL_CURSEFORGE_API_KEY" : Return "CurseForgeAPIKey"
             Case "PCL_CDN_SIGNING_SECRET" : Return "CdnSigningSecret"
             Case "PCL_CDN_SIGNING_USER_ID" : Return "CdnSigningUserId"
-            Case "PCL_POTATO_PUBLIC_KEY" : Return "PotatoPublicKey"
-            Case "PCL_SERVER_CONFIG_URL" : Return "ServerConfigUrl"
-            Case "PCL_UPDATE_BASE_URL" : Return "UpdateBaseUrl"
-            Case "PCL_UPDATE_ALLOW_AUTOMATIC" : Return "UpdateAllowAutomatic"
-            Case "PCL_UPDATE_SHA256" : Return "UpdateSha256"
             Case Else : Return Name
         End Select
     End Function

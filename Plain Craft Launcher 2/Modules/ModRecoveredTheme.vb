@@ -1,5 +1,5 @@
-' Recovered from the supplied 2.12.8.2 assembly. The sample itself forces theme 0.
-' Do not replace the sample's authorization stubs with unconditional success.
+' Fork-local themes reuse the recovered drawing code and bundled title patterns.
+' Only theme 0's original palette survived; the other palettes are local reconstructions.
 Friend Module ModRecoveredTheme
 
     Public Color1 As New MyColor(52, 61, 74)
@@ -29,24 +29,64 @@ Friend Module ModRecoveredTheme
     Public ColorHueTopbarDelta As OneOf(Of Integer, Integer()) = 0
     Public ThemeDontClick As Integer = 0
 
+    Friend Structure LocalThemePalette
+        Public Hue As Integer
+        Public Saturation As Integer
+        Public LightAdjust As Integer
+        Public TitleDelta As Integer
+
+        Public Sub New(Hue As Integer, Saturation As Integer, LightAdjust As Integer, Optional TitleDelta As Integer = 0)
+            Me.Hue = Hue
+            Me.Saturation = Saturation
+            Me.LightAdjust = LightAdjust
+            Me.TitleDelta = TitleDelta
+        End Sub
+    End Structure
+
+    Friend Function GetLocalThemePalette(Id As Integer, Optional AnimationTime As Long = -1) As LocalThemePalette
+        Select Case Id
+            Case 1 : Return New LocalThemePalette(180, 75, -2) ' 甜柠青
+            Case 2 : Return New LocalThemePalette(125, 70, -3) ' 小草绿
+            Case 3 : Return New LocalThemePalette(52, 78, -4) ' 菠萝黄
+            Case 4 : Return New LocalThemePalette(30, 70, -15) ' 橡木棕
+            Case 5 : Return New LocalThemePalette(210, 0, -18) ' 玄素黑
+            Case 6 : Return New LocalThemePalette(330, 75, 2) ' 铁杆粉
+            Case 7 : Return New LocalThemePalette(275, 70, 0) ' 神秘紫
+            Case 8 : Return New LocalThemePalette(43, 90, -4) ' 秋仪金
+            Case 9 : Return New LocalThemePalette(25, 90, 0) ' 活跃橙
+            Case 10 : Return New LocalThemePalette(5, 85, 0) ' 跳票红
+            Case 11 : Return New LocalThemePalette(225, 85, -8) ' 极客蓝
+            Case 12
+                ' The existing 250 ms timer drives one local hue cycle every 18 seconds.
+                If AnimationTime < 0 Then AnimationTime = GetTimeMs()
+                Return New LocalThemePalette(CInt((AnimationTime Mod 18000) \ 50), 75, 0, 21)
+            Case 13 : Return New LocalThemePalette(300, 70, 2, 90) ' 静态欧皇彩
+            Case 14
+                Return New LocalThemePalette(
+                    Math.Max(0, Math.Min(360, Settings.Get(Of Integer)("UiLauncherHue"))),
+                    Math.Max(0, Math.Min(100, Settings.Get(Of Integer)("UiLauncherSat"))),
+                    Math.Max(0, Math.Min(40, Settings.Get(Of Integer)("UiLauncherLight"))) - 20,
+                    Math.Max(0, Math.Min(180, Settings.Get(Of Integer)("UiLauncherDelta"))) - 90)
+            Case Else : Return New LocalThemePalette(210, 85, 0) ' 龙猫蓝 / invalid legacy ID
+        End Select
+    End Function
+
     Public Sub ThemeRefresh(Optional NewTheme As Integer = -1)
+        ' Settings callbacks can originate on a worker thread. All colors/resources belong to the UI.
+        RunInUi(Sub() ApplyLocalTheme(NewTheme))
+    End Sub
+
+    Private Sub ApplyLocalTheme(NewTheme As Integer)
         Try
-            ' This assignment is present in the supplied binary, including when another theme is requested.
-            NewTheme = 0
-            If ThemeNow = NewTheme AndAlso NewTheme >= 0 Then Return
-            If Not ThemeCheckOne(If(NewTheme >= 0, NewTheme, ThemeNow)) Then Return
-            If NewTheme >= 0 Then ThemeNow = NewTheme
-            ColorHue = 210
-            ColorSat = 85
-            ColorLightAdjust = 0
-            Select Case ThemeDontClick
-                Case 1
-                    ColorLightAdjust = 999
-                Case 2
-                    ColorHue = RandomInteger(0, 359)
-                    ColorSat = RandomInteger(40, 70)
-                    ColorLightAdjust = RandomInteger(-20, 20)
-            End Select
+            If NewTheme = -1 Then NewTheme = If(ThemeNow >= 0, ThemeNow, Settings.Get(Of Integer)("UiLauncherTheme"))
+            If Not ThemeCheckOne(NewTheme) Then NewTheme = 0
+            Dim ThemeChanged = ThemeNow <> NewTheme
+            ThemeNow = NewTheme
+            Dim Palette = GetLocalThemePalette(ThemeNow)
+            ColorHue = Palette.Hue
+            ColorSat = Palette.Saturation
+            ColorLightAdjust = Palette.LightAdjust
+            ColorHueTopbarDelta = Palette.TitleDelta
 
             Color1 = New MyColor().FromHSL2(ColorHue, ColorSat * 0.2, 25 + ColorLightAdjust * 0.3)
             Color2 = New MyColor().FromHSL2(ColorHue, ColorSat, 45 + ColorLightAdjust)
@@ -70,6 +110,7 @@ Friend Module ModRecoveredTheme
             Application.Current.Resources("ColorBrush8") = New SolidColorBrush(Color8)
             Application.Current.Resources("ColorBrushBg0") = New SolidColorBrush(ColorBg0)
             Application.Current.Resources("ColorBrushBg1") = New SolidColorBrush(ColorBg1)
+            Application.Current.Resources("ColorBrushSemiTransparent") = New SolidColorBrush(ColorSemiTransparent)
             Application.Current.Resources("ColorObject1") = CType(Color1, Color)
             Application.Current.Resources("ColorObject2") = CType(Color2, Color)
             Application.Current.Resources("ColorObject3") = CType(Color3, Color)
@@ -81,7 +122,7 @@ Friend Module ModRecoveredTheme
             Application.Current.Resources("ColorObjectBg0") = CType(ColorBg0, Color)
             Application.Current.Resources("ColorObjectBg1") = CType(ColorBg1, Color)
             ThemeRefreshMain()
-            If ThemeNow <> 12 AndAlso ThemeNow <> 14 AndAlso ThemeDontClick <> 2 Then Logger.Info($"刷新主题：{ThemeNow}")
+            If ThemeChanged Then Logger.Info("刷新本地主题：" & ThemeNow)
         Catch ex As Exception
             Logger.Error(ex, "刷新主题颜色失败", LogBehavior.Toast)
         End Try
@@ -98,7 +139,7 @@ Friend Module ModRecoveredTheme
                 Brush.GradientStops.Add(New GradientStop With {.Offset = 1, .Color = New MyColor().FromHSL2(ColorHue, ColorSat, 25)})
                 FrmMain.PanTitle.Background = Brush
                 FrmMain.PanTitle.Background.Freeze()
-            ElseIf ThemeNow <> 12 AndAlso ThemeDontClick <> 2 Then
+            ElseIf ThemeNow <> 12 Then
                 Dim Deltas = ColorHueTopbarDelta.Switch(Function(d) New Integer() {-d, 0, d}, Function(d) d)
                 Brush.GradientStops.Add(New GradientStop With {.Offset = 0, .Color = New MyColor().FromHSL2(ColorHue + Deltas(0), ColorSat, 48 + ColorLightAdjust)})
                 Brush.GradientStops.Add(New GradientStop With {.Offset = 0.5, .Color = New MyColor().FromHSL2(ColorHue + Deltas(1), ColorSat, 54 + ColorLightAdjust)})
@@ -113,7 +154,7 @@ Friend Module ModRecoveredTheme
                 FrmMain.PanTitle.Background = Brush
             End If
 
-            FrmMain.ImgTitle.Source = If(ThemeNow >= 5 AndAlso ThemeNow <> 14, $"{PathImage}Themes/{ThemeNow}.png", Nothing)
+            FrmMain.ImgTitle.Source = If(ThemeNow >= 5 AndAlso ThemeNow <= 13, PathImage & "Themes/" & ThemeNow & ".png", Nothing)
             FrmMain.ImgTitle.Opacity = If(ThemeNow = 13, 0.25, 0.5)
             If Settings.Get(Of Boolean)("UiBackgroundColorful") Then
                 Brush = New LinearGradientBrush With {.EndPoint = New Point(0.1, 1), .StartPoint = New Point(0.9, 0)}
@@ -134,44 +175,21 @@ Friend Module ModRecoveredTheme
             Try
                 Dim SelectedTheme = Settings.Get(Of Integer)("UiLauncherTheme")
                 If Not ThemeCheckOne(SelectedTheme) Then
-                    Logger.Warn($"检测到尚未解锁的主题：{SelectedTheme}，已重置为默认主题", LogBehavior.ToastIfDebug)
+                    Logger.Warn("不支持的旧主题编号，已重置为默认本地主题。", LogBehavior.ToastIfDebug)
                     Settings.Set("UiLauncherTheme", 0)
                 End If
-                If EffectSetup AndAlso FrmSetupUI IsNot Nothing Then
-                    ' The binary computes this list but contains no further settings-UI update.
-                    Dim AvailableThemes As New List(Of Integer)
-                    For Id As Integer = 0 To 14
-                        If ThemeCheckOne(Id) Then AvailableThemes.Add(Id)
-                    Next
-                    AvailableThemes.Add(42)
-                End If
             Catch ex As Exception
-                If TypeOf If(ex.InnerException, ex) Is FormatException Then
-                    Logger.Error(ex, "解锁的主题列表存档已损坏，主题解锁已被重置", LogBehavior.Alert)
-                    Settings.Set("UiLauncherThemeHide2", "")
-                Else
-                    Logger.Error(ex, "检查主题失败", LogBehavior.AlertThenFeedback)
-                End If
+                Logger.Error(ex, "检查本地主题设置失败", LogBehavior.Toast)
             End Try
         End Sub)
     End Sub
 
     Friend Function ThemeCheckOne(Id As Integer) As Boolean
-        If {0, 1, 2, 3, 4, 42}.Contains(Id) Then Return True
-        If PotatoFeatures.Contains("Theme" & Id.ToString(Globalization.CultureInfo.InvariantCulture)) Then Return True
-        Select Case Id
-            Case 8
-                Return CurrentRank >= DonationRank.Rank23
-            Case 14
-                Return Enumerable.Range(5, 9).Count(Function(ThemeId) ThemeCheckOne(ThemeId)) >= 5
-            Case Else
-                If If(Settings.Get(Of String)("UiLauncherThemeHide"), "").Contains("7") Then ThemeUnlock(7, ShowDoubleHint:=False)
-                Return If(Settings.Get(Of String)("UiLauncherThemeHide2"), "").Split("|"c).Contains(Id.ToString(Globalization.CultureInfo.InvariantCulture))
-        End Select
+        Return Id >= 0 AndAlso Id <= 14
     End Function
 
     Friend Function ThemeUnlock(Id As Integer, Optional ShowDoubleHint As Boolean = True, Optional UnlockHint As String = Nothing) As Boolean
-        ' No unlocking implementation survived in the supplied assembly.
+        ' Compatibility only: local themes have no unlock workflow or authorization grant.
         Return False
     End Function
 

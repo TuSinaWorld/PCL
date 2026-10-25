@@ -178,9 +178,10 @@ Public Class CustomEvent
     ''' </summary>
     Public Shared Sub Raise(Type As EventType, Arg As String)
         If Type = EventType.None Then Return
-        Logger.Info($"执行自定义事件：{Type}, {Arg}")
+        Dim LogArgument = If(Type = EventType.加入房间, "[邀请码已隐藏]", Arg)
+        Logger.Info("执行自定义事件：" & Type.ToString() & ", " & LogArgument)
         If Arg Is Nothing Then Arg = ""
-        Dim Args As String() = Arg.Split("|")
+        Dim Args As String() = Arg.Split("|"c)
         Dim Arg0 As String = Arg.BeforeFirst("|")
         Dim Arg1 As String = Arg.AfterFirst("|")
         Try
@@ -351,7 +352,8 @@ Public Class CustomEvent
                     MyMsgBox("未知的事件类型：" & Type & vbCrLf & "请检查事件类型填写是否正确，或者 PCL 是否为最新版本。", "事件执行失败")
             End Select
         Catch ex As Exception
-            Logger.Error(ex, $"事件执行失败（{Type}, {Arg}）", LogBehavior.Alert)
+            Dim LoggedError = If(Type = EventType.加入房间, New Exception("加入房间事件失败（" & ex.GetType().Name & "）。"), ex)
+            Logger.Error(LoggedError, "事件执行失败（" & Type.ToString() & ", " & LogArgument & "）", LogBehavior.Alert)
         End Try
     End Sub
 
