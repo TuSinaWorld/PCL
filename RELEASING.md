@@ -11,7 +11,7 @@ GitHub Releases 放置已构建的 `Plain Craft Launcher 2.exe`，并附 SHA-256
 - Windows 和 .NET Framework 4.8；首轮验证平台为 Windows 11 x64。
 - EXE 首次运行会生成本地设置、缓存和必要文件，不能将“单 EXE 分发”理解为运行时不产生文件。
 - Minecraft、Java 和 EasyTier 不打包进启动器；按需下载或使用本机已有文件。EasyTier 使用固定官方版本和 SHA-256。
-- 微软 Client ID、CurseForge API Key 等继续从本地 JSON 或环境变量读取，公开 EXE 不携带实际凭据。配置方式见 `RESTORATION.md`。
-- 开发版标为预发布，明确区分本机验证与未完成的公网两机、真实 Minecraft 及完整 GUI 验收。
+- 用户已授权 fork-3.0.1 在构建时内嵌 Client ID 与有权公开分发的 CurseForge Key；只从显式私有输入生成两字段资源，CDN 材料不内嵌，真实值不进入 Git。环境变量与本地 JSON 仍可覆盖，配置方式见 `RESTORATION.md`。
+- 遵循用户指定的发布状态：`fork-3.0.1` 为正式版，Release 说明保持简洁。删除用户明确要求移除的旧 Release；不把发布状态当作完整 GUI 或公网两机验收结论。
 
 发布使用显式标签和目标提交，禁止让 GitHub 默认从 `main` 创建错误标签。发布后核对远程标签、Release 状态、资产大小和 SHA-256。

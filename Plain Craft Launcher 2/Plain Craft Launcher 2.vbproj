@@ -962,5 +962,19 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  <PropertyGroup>
+    <PclEmbeddedClientConfigFile>$(MSBuildProjectDirectory)\obj\$(Configuration)\PCL.EmbeddedClientConfig.json</PclEmbeddedClientConfigFile>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(PclEmbedClientConfigPath)' != ''">
+    <EmbeddedResource Include="$(PclEmbeddedClientConfigFile)">
+      <LogicalName>PCL.EmbeddedClientConfig.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <Target Name="PrepareEmbeddedClientConfig" BeforeTargets="PrepareResources" Condition="'$(PclEmbedClientConfigPath)' != ''">
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)" Command="powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\build\Prepare-EmbeddedClientConfig.ps1&quot; -InputPath &quot;$(PclEmbedClientConfigPath)&quot; -OutputPath &quot;$(PclEmbeddedClientConfigFile)&quot;" />
+    <ItemGroup>
+      <FileWrites Include="$(PclEmbeddedClientConfigFile)" />
+    </ItemGroup>
+  </Target>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
 </Project>

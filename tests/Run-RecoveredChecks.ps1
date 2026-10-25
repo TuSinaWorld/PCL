@@ -20,6 +20,8 @@ $suites = @(
     'LocalLink\Run.ps1'
     'LocalLinkNavigation\Run.ps1'
     'LocalLinkInput\Run.ps1'
+    'EmbeddedConfiguration\Run.ps1'
+    'EmbeddedConfigurationBuild\Run.ps1'
 )
 $results = @()
 foreach ($suite in $suites) {

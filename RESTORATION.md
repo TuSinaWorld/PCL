@@ -2,13 +2,13 @@
 
 后续开发统一在 `dev/local-client` 分支提交并同步到 fork；原恢复分支及 PR 保留。开发与发布规则见 `AGENTS.md`、`RELEASING.md`。
 
-本分支以公开 PCL 2.99.0.0 为基线，参考提供的 2.12.8.2 程序集恢复客户端代码，并按 fork 的用途重建本地功能。它不是作者私有仓库的完整副本；主题配色和联机邀请码为本 fork 的实现。
+本分支以公开 PCL 2.99.0.0 为基线，参考提供的 2.12.8.2 程序集恢复客户端代码，并按 fork 的用途重建本地功能。当前正式版本为 **fork-3.0.1**（程序集 3.0.1.0）。它不是作者私有仓库的完整副本；主题配色和联机邀请码为本 fork 的实现。
 
 ## 可用范围
 
 - **主题**：0–14 全部本地开放，14 为自定义；保留名称、图案、渐变和背景配色。除默认主题外的配色是重建值。主题 12 动态变色，13 静态多彩；色调、饱和度、亮度、渐变滑块保存后立即生效。历史 42 或非法主题回退默认值。
 - **Minecraft 与整合包**：已移除 2.99 的下载限制，恢复新实例、组件和受支持整合包的安装入口。明确使用 Quilt 的包（含内嵌版本 JSON、嵌套包）在创建实例和安装依赖前拒绝；已有本地 Quilt 实例的识别与启动保持不变。
-- **资源与账号**：保留微软登录、CurseForge、Modrinth、下载镜像和用户选择的联网主页。凭据只从本地文件或环境变量读取。
+- **资源与账号**：保留微软登录、CurseForge、Modrinth、下载镜像和用户选择的联网主页。支持构建时内嵌获授权的 Client ID／CurseForge Key，并允许环境变量或本地文件覆盖。
 - **百宝箱**：保留自定义下载、今日人品、确认后的缓存清理、内存整理和本地回声洞。不包含官方投稿、窗口恶作剧或开发者私人工具。
 - **整合包导出**：保留本地导出配置及附带启动器选项；附带当前 fork 的 EXE，不获取官方最新版，也不复制本地服务凭据。
 
@@ -31,9 +31,19 @@
 
 官方组件：[v2.6.4](https://github.com/EasyTier/EasyTier/releases/tag/v2.6.4)、[附件摘要](https://github.com/EasyTier/EasyTier/releases/expanded_assets/v2.6.4)、[免 TUN 模式](https://easytier.cn/guide/network/no-root.html)。
 
-## 本地凭据配置
+## 构建时内嵌与本地覆盖
 
-将 `recovered-config.example.json` 复制到可执行文件旁的 `PCL/recovered-config.local.json`，按需填写；该文件被 Git 忽略，不能提交实际值。源项目中存在该文件时，本地构建会复制到输出目录；交付 ZIP 不包含它。
+fork-3.0.1 正式发布构建内嵌 Client ID 和获授权的 CurseForge Key，无需另放 JSON 即可读取这两项默认值。CDN 材料不内嵌。读取顺序为环境变量、本地 JSON、内嵌默认值、调用方默认值；显式空值禁用对应项。
+
+普通源码构建默认不携带凭据。要生成内嵌构建，准备私有 JSON（只需 `OAuthClientId` 与 `CurseForgeAPIKey`），并显式传入路径：
+
+```powershell
+msbuild "Plain Craft Launcher 2/Plain Craft Launcher 2.vbproj" -p:Configuration=Release -p:PclEmbedClientConfigPath=C:\private\client.local.json
+```
+
+准备脚本只输出这两个白名单字段，资源位于被忽略的 `obj`；不把真实值写入源码、日志或发布说明。内嵌值可以从 EXE 中提取，不提供保密保证。
+
+如需覆盖内嵌值，将 `recovered-config.example.json` 复制到可执行文件旁的 `PCL/recovered-config.local.json`，按需填写；该文件被 Git 忽略，不能提交实际值。源项目中存在该文件时，本地构建会复制到输出目录；发布资产不包含它。只需修改哪一项就保留哪一项，留空会禁用对应项。
 
 可用 `PCL_RECOVERED_CONFIG` 指定路径。环境变量优先于 JSON；显式空值禁用对应配置。
 
@@ -67,3 +77,7 @@ msbuild "Plain Craft Launcher 2/Plain Craft Launcher 2.vbproj" -p:Configuration=
 - 使用官方 v2.6.4 x64 包，真实验证单房主在零玩家时可准备房间，以及双 Core CLI、TCP/UDP 数据往返；不修改系统服务、防火墙或 TUN。
 - 单独复制 Release EXE 后执行不支持的 --update，退出码 1，证明无需旁置依赖 DLL 即可进入禁用分支；未进行真实更新替换。
 - 本机公共节点 API 域名解析失败；跨互联网两台机器和真实 Minecraft 房间加入尚未验证。登录/API 凭据有效性、原生内存整理没有实测。
+
+## fork-3.0.1 验证补充
+
+正式Release内嵌的资源仅包含Client ID与获授权CurseForge Key，CDN材料排除；无外部配置的独立EXE可读取默认值并用于实际请求头。十组777项行为断言及6项互操作条件通过；构建输入撤销后资源不会残留。最小在线检查中CurseForge搜索和微软设备登录准备均返回200，未进行用户登录。

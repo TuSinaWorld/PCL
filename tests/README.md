@@ -18,9 +18,13 @@ powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Run-
 | `LocalLink` | 邀请码、节点、CLI、组件校验/安全提取/安装，合成子进程超时取消清理 |
 | `LocalLinkNavigation` | 真实剪贴板激活处理器，长房间码、用户确认、指纹去重及口令不入日志 |
 | `LocalLinkInput` | 实际 WPF 文本输入、8192 长度、敏感返回值的日志脱敏及普通弹窗兼容 |
+| `EmbeddedConfiguration` | 真实程序集资源加载、白名单、覆盖顺序、空值禁用及无资源回退 |
+| `EmbeddedConfigurationBuild` | 构建资源净化、CDN 排除、输入边界及增量输出 |
 
 使用 Windows 自带的 Framework 编译器及仓库内 Newtonsoft.Json.dll；主题组还使用 Windows WPF 程序集。无需分析目录、反编译工具或固定盘符。日志、临时源码、程序集、夹具只写入被忽略的各组 `bin/`。
 
 真实官方 EasyTier 双 Core 本机传输是单独的显式集成检查，见 `LocalLink/README.md`；不混入日常离线套件。隔离检查、完整项目编译、线上登录以及跨机器游戏联机属于不同验证层次，报告中分别说明。
 
 2026-10-25：八组共389项行为断言与6项互操作条件，从仓库外目录在PowerShell 7及Windows PowerShell 5.1均通过；单房主就绪及真实双Core TCP/UDP传输的独立集成检查也通过。
+
+内嵌配置新增两组：126项运行时断言与262项构建净化断言；当前十组共777项行为断言，另有6项互操作条件。普通测试只使用合成配置。
