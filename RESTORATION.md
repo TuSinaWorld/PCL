@@ -18,9 +18,9 @@
 
 配置下发、公告、启动器自更新与遥测已停用，设置入口隐藏。旧服务地址、缓存公告及自动更新开关不会重新启用它们；旧 `--update` 调用退出失败，不替换文件。升级请手动替换启动器。全局设置导入/导出隐藏；整合包导出页面的本地导入/导出仍可用。
 
-## VLan 联机融合（开发测试版）
+## VLan 联机融合（fork-3.0.2）
 
-联机入口已替换为用户自己的 VLan v9 后端。现有 v9 服务端代码及协议保持不变；旧 EasyTier 模块仅留作历史回归夹具，产品路径不再获取公共节点或启动 EasyTier。当前仅提供 Windows x64 的融合组件，不覆盖 fork-3.0.1 正式 Release。
+联机入口已替换为用户自己的 VLan v9 后端。现有 v9 服务端代码及协议保持不变；旧 EasyTier 模块仅留作历史回归夹具，产品路径不再获取公共节点或启动 EasyTier。当前提供 Windows x64 的融合组件，随 fork-3.0.2 发布；保留 fork-3.0.1 正式 Release。
 
 - 房主首次在设置中填写服务器地址、端口（默认 11510）和鉴权密码，可测试鉴权；凭据按 Windows 当前用户 DPAPI 加密保存。
 - 创建房间优先读取当前 Minecraft 日志中的局域网端口，识别失败可手填。默认自动生成随机房间密码，也可在设置中选择不设房间密码。
@@ -32,13 +32,13 @@
 - 关闭启动器会确认并等待组件清理；取消关闭继续联机。启动器意外退出或命名管道断开时，组件走正常清理，不强杀驱动线程。
 - 显示成员、实际传输方式、RTT、探测超时率。保留最多 8 人、IPv4、中心中继；不提供 P2P 或 EasyTier NAT 状态。高级设置可选择下次建房使用 TCP Relay。
 
-融合测试 EXE 内嵌经校验的 CLI + 官方 Wintun 包，首次联机自动释放并逐文件校验，避免依赖尚未发布的机器接口下载资产；无额外手动下载步骤。包的精确 CLI 源码在 [VLan 集成分支](https://github.com/TuSinaWorld/vlan-connect/tree/feat/pcl-integration)，接口见该分支的 `docs/pcl-integration.md`。打包脚本 `build/Update-VlanBundle.ps1` 要求 `--version` 带 `protocol=9` 和 `machine=1`，并记录源码提交。
+融合 EXE 内嵌经校验的 CLI + 官方 Wintun 包，首次联机自动释放并逐文件校验，避免依赖另行发布的机器接口下载资产；无额外手动下载步骤。包的精确 CLI 源码在 [VLan 集成分支](https://github.com/TuSinaWorld/vlan-connect/tree/feat/pcl-integration)，接口见该分支的 `docs/pcl-integration.md`。打包脚本 `build/Update-VlanBundle.ps1` 要求 `--version` 带 `protocol=9` 和 `machine=1`，并记录源码提交。
 
 运行 `tests/VlanLink/Run.ps1` 检查合成邀请码、DPAPI 和组件修复；加 `-IncludeLocalTransport` 执行真实回环 TCP、房主会话和 CLI 管道/退出测试。它们不连接实际服务端、不创建虚拟网卡。真实 UAC、Wintun 和双设备 Minecraft 验收另行记录，不将隔离测试等同于线上可玩性证明。
 
 ## 构建时内嵌与本地覆盖
 
-fork-3.0.1 正式发布构建内嵌 Client ID 和获授权的 CurseForge Key，无需另放 JSON 即可读取这两项默认值。CDN 材料不内嵌。读取顺序为环境变量、本地 JSON、内嵌默认值、调用方默认值；显式空值禁用对应项。
+fork-3.0.1 与 fork-3.0.2 正式发布构建内嵌 Client ID 和获授权的 CurseForge Key，无需另放 JSON 即可读取这两项默认值。CDN 材料不内嵌。读取顺序为环境变量、本地 JSON、内嵌默认值、调用方默认值；显式空值禁用对应项。
 
 普通源码构建默认不携带凭据。要生成内嵌构建，准备私有 JSON（只需 `OAuthClientId` 与 `CurseForgeAPIKey`），并显式传入路径：
 

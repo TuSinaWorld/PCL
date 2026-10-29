@@ -1,6 +1,6 @@
-# VLan 联机融合测试版
+# VLan 联机融合
 
-本分支以 VLan 替换 EasyTier，界面版本为 `fork-3.0.1-vlan-dev`。原 `fork-3.0.1` 正式 Release 未修改。服务端继续使用已有 v9 协议，不修改部署或服务端代码；实际部署如果是 v8，需先升级，不能混连。
+本分支以 VLan 替换 EasyTier，当前发布版本为 `fork-3.0.2`。原 `fork-3.0.1` 正式 Release 保留。服务端继续使用已有 v9 协议，不修改部署或服务端代码；实际部署如果是 v8，需先升级，不能混连。
 
 ## 使用
 
@@ -28,11 +28,11 @@
 
 ## 组件和源码
 
-测试 EXE 内嵌固定组件包，首次联机自动释放并核对完整包与逐文件哈希，包含 `vlan-cli.exe`、官方 x64 `wintun.dll` 及许可证声明。损坏缓存暂存为备份目录再修复，不覆盖仍加载的旧文件。组件只依赖 Windows 系统库及 Wintun，无 Qt GUI 或 VC 运行库旁置要求。
+发布 EXE 内嵌固定组件包，首次联机自动释放并核对完整包与逐文件哈希，包含 `vlan-cli.exe`、官方 x64 `wintun.dll` 及许可证声明。损坏缓存暂存为备份目录再修复，不覆盖仍加载的旧文件。组件只依赖 Windows 系统库及 Wintun，无 Qt GUI 或 VC 运行库旁置要求。
 
 VLan CLI 来源：[feat/pcl-integration](https://github.com/TuSinaWorld/vlan-connect/tree/feat/pcl-integration)，精确提交 `96d4bb5ce3ddb48e09fc47c7d0e718f1d5c52286`。网络协议仍是 v9，机器接口版本 1。构建脚本为该仓库 `client-cli/windows/build.bat`；PCL 打包入口为 `build/Update-VlanBundle.ps1`，检查 `--version` 的 `machine=1` 并固定包哈希。
 
-用内嵌组件部署替代首次联网下载，是为了测试包不依赖尚未发布的 CLI 机器接口资产。旧的官方 v0.3.4 包没有该接口，不能直接替换。EXE 仍会在运行目录之外生成组件及用户配置，不是内存中直接执行所有组件。
+用内嵌组件部署替代首次联网下载，使发布包不依赖另行发布的 CLI 机器接口资产。旧的官方 v0.3.4 包没有该接口，不能直接替换。EXE 仍会在运行目录之外生成组件及用户配置，不是内存中直接执行所有组件。
 
 ## 验证与回机验收
 
