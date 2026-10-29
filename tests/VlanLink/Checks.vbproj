@@ -1,0 +1,17 @@
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFrameworkVersion>v4.8</TargetFrameworkVersion><RootNamespace></RootNamespace>
+    <AssemblyName>VlanLinkChecks</AssemblyName><OutputPath>bin\</OutputPath><OptionInfer>On</OptionInfer><OptionStrict>Off</OptionStrict><LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System"/><Reference Include="System.Core"/><Reference Include="System.Security"/><Reference Include="System.IO.Compression"/>
+    <Reference Include="Newtonsoft.Json"><HintPath>..\..\Plain Craft Launcher 2\Resources\Newtonsoft.Json.dll</HintPath></Reference>
+    <Import Include="System"/><Import Include="Microsoft.VisualBasic"/><Import Include="System.Linq"/><Import Include="System.Collections.Generic"/><Import Include="System.Diagnostics"/>
+    <Compile Include="Checks.vb"/>
+    <Compile Include="..\..\Plain Craft Launcher 2\Modules\ModVlanLink.vb"/>
+    <Compile Include="..\..\Plain Craft Launcher 2\Modules\ModVlanPackage.vb"/>
+    <Compile Include="..\..\Plain Craft Launcher 2\Modules\VlanGameBridge.vb"/>
+    <EmbeddedResource Include="..\..\Plain Craft Launcher 2\Resources\VLanBundle.zip"><LogicalName>PCL.VLanBundle.zip</LogicalName></EmbeddedResource>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets"/>
+</Project>

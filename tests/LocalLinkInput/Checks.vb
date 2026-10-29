@@ -105,6 +105,13 @@ Public Class LocalLinkInputChecks
         InvalidControl.Btn2_Click()
         Check(InputContext.CloseCount = 1 AndAlso CStr(InvalidControlConverter.Result) = "invalid fixture", "already-exited dialog cannot overwrite or close the accepted result again")
 
+        InputContext.Reset()
+        Dim Masked As New MyMsgBoxConverter With {.Sensitive = True, .InputMasked = True, .InputMaxLength = 256, .Content = ""}
+        Dim PasswordControl As New MyMsgInput(Masked)
+        Check(PasswordControl.TextArea.Visibility = Visibility.Collapsed AndAlso PasswordControl.PasswordArea.Visibility = Visibility.Visible, "password entry uses the real WPF PasswordBox")
+        PasswordControl.PasswordArea.Password = "SyntheticPassword123"
+        PasswordControl.Btn1_Click()
+        Check(CStr(Masked.Result) = "SyntheticPassword123" AndAlso Masked.InputResultLogText = "[已隐藏]", "masked input confirms correctly without logging credentials")
         For Each Invalid In New Integer() {Integer.MinValue, -1, 0, 65537, Integer.MaxValue}
             InputContext.Reset()
             Dim Failure As ArgumentOutOfRangeException = Nothing

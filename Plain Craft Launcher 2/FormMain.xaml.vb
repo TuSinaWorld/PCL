@@ -1,4 +1,4 @@
-Imports System.ComponentModel
+﻿Imports System.ComponentModel
 Imports System.Windows.Interop
 
 Public Class FormMain
@@ -853,7 +853,7 @@ Public Class FormMain
         Dim Code = ClipboardGetText() : If Code Is Nothing Then Return '剪贴板无文本
         If PageLinkMain.ValidateCodeFormat(Code) IsNot Nothing Then Return '不是邀请码
         ' 设置保存会写入调试日志；只保存去重指纹，避免记录邀请码中的房间口令。
-        Dim InviteFingerprint = ModLocalLink.GetInviteFingerprint(Code)
+        Dim InviteFingerprint = ModVlanLink.Fingerprint(Code)
         If Settings.Get(Of String)("LinkLastAutoJoinInviteCode") = InviteFingerprint Then Return
         Settings.Set("LinkLastAutoJoinInviteCode", InviteFingerprint)
         RunInThread(

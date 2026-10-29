@@ -1,4 +1,4 @@
-Imports System.Reflection
+﻿Imports System.Reflection
 Imports System.Resources
 Imports System.Runtime.InteropServices
 
@@ -53,5 +53,5 @@ Imports System.Runtime.InteropServices
 
 <Assembly: AssemblyVersion("3.0.1.0")>
 <Assembly: AssemblyFileVersion("3.0.1.0")>
-<Assembly: AssemblyInformationalVersion("fork-3.0.1")>
+<Assembly: AssemblyInformationalVersion("fork-3.0.1-vlan-dev")>
 <Assembly: NeutralResourcesLanguage("")>

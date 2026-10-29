@@ -1,4 +1,4 @@
-Imports System.Collections.ObjectModel
+﻿Imports System.Collections.ObjectModel
 Imports System.Windows.Interop
 Imports System.Windows.Threading
 
@@ -177,6 +177,7 @@ EndHint:
         Public HintText As String = ""
         Public InputMaxLength As Integer = 1000
         Public Sensitive As Boolean = False
+        Public InputMasked As Boolean = False
         Public ReadOnly Property InputResultLogText As String
             Get
                 Return If(Sensitive, "[已隐藏]", If(Result, "null").ToString())
@@ -290,10 +291,10 @@ EndHint:
     ''' <param name="Button1">显示的第一个按钮，默认为“确定”。</param>
     ''' <param name="Button2">显示的第二个按钮，默认为“取消”。</param>
     ''' <param name="IsWarn">是否为警告弹窗，若为 True，弹窗配色和背景会变为红色。</param>
-    Public Function MyMsgBoxInput(Title As String, Optional Text As String = Nothing, Optional DefaultInput As String = Nothing, Optional ValidateRules As Collection(Of Validate) = Nothing, Optional HintText As String = "", Optional Button1 As String = "确定", Optional Button2 As String = "取消", Optional IsWarn As Boolean = False, Optional MaxLength As Integer = 1000, Optional Sensitive As Boolean = False) As String
+    Public Function MyMsgBoxInput(Title As String, Optional Text As String = Nothing, Optional DefaultInput As String = Nothing, Optional ValidateRules As Collection(Of Validate) = Nothing, Optional HintText As String = "", Optional Button1 As String = "确定", Optional Button2 As String = "取消", Optional IsWarn As Boolean = False, Optional MaxLength As Integer = 1000, Optional Sensitive As Boolean = False, Optional MaskInput As Boolean = False) As String
         '将弹窗列入队列
         If MaxLength < 1 OrElse MaxLength > 65536 Then Throw New ArgumentOutOfRangeException(NameOf(MaxLength))
-        Dim Converter As New MyMsgBoxConverter With {.Text = If(Text, ""), .HintText = If(HintText, ""), .Type = MyMsgBoxType.Input, .ValidateRules = If(ValidateRules, New Collection(Of Validate)), .Button1 = Button1, .Button2 = Button2, .Content = DefaultInput, .IsWarn = IsWarn, .Title = Title, .InputMaxLength = MaxLength, .Sensitive = Sensitive}
+        Dim Converter As New MyMsgBoxConverter With {.Text = If(Text, ""), .HintText = If(HintText, ""), .Type = MyMsgBoxType.Input, .ValidateRules = If(ValidateRules, New Collection(Of Validate)), .Button1 = Button1, .Button2 = Button2, .Content = DefaultInput, .IsWarn = IsWarn, .Title = Title, .InputMaxLength = MaxLength, .Sensitive = Sensitive, .InputMasked = MaskInput}
         WaitingMyMsgBox.Enqueue(Converter)
         '虽然我也不知道这是啥但是能用就成了 :)
         Try

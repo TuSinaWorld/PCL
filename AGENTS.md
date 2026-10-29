@@ -10,8 +10,8 @@
 
 ## 实现与验证
 
-- 功能目标与边界见 `RESTORATION.md`。主题、Minecraft 下载和 EasyTier 为本地 fork 功能；配置下发、公告、自更新、遥测、赞助权益与土豆码已禁用，不因旧配置重新启用。
-- 根据变更范围运行必要检查。统一离线入口为 `tests/Run-RecoveredChecks.ps1`；真实 EasyTier 本机集成为 `tests/LocalLink/Run-Integration.ps1`，需要明确指定已下载的官方组件。
+- 功能目标与边界见 `RESTORATION.md`。当前联机使用 VLan v9，EasyTier 仅保留历史回归代码；配置下发、公告、自更新、遥测、赞助权益与土豆码已禁用，不因旧配置重新启用。
+- 根据变更范围运行必要检查。统一离线入口为 `tests/Run-RecoveredChecks.ps1`；当前真实回环 TCP/机器接口测试为 `tests/VlanLink/Run.ps1 -IncludeLocalTransport`，不创建网卡。`-UacProbe` 会请求人工管理员授权，只查状态；真实网卡与双设备 Minecraft 必须另行记录。历史 EasyTier 双 Core 测试不可作为 VLan 验收依据。
 - 完整构建需要 Windows、支持 C# 13 的 SDK、WPF 工具链及 .NET Framework 4.8 引用程序集。纯文档改动无需重复完整运行测试。
 - 区分编译、隔离行为、完整 GUI、真实服务和跨网络联机验证，不把某一项通过当作全部功能验证。
 

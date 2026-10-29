@@ -1,4 +1,4 @@
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -162,6 +162,7 @@
     </Reference>
     <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Security" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
@@ -264,6 +265,9 @@
     <Compile Include="Modules\ModRecoveredTheme.vb" />
     <Compile Include="Modules\ModRecoveredIdentity.vb" />
     <Compile Include="Modules\ModLocalLink.vb" />
+    <Compile Include="Modules\ModVlanLink.vb" />
+    <Compile Include="Modules\ModVlanPackage.vb" />
+    <Compile Include="Modules\VlanGameBridge.vb" />
     <Compile Include="Pages\PageDownload\Resource\PageResource.xaml.vb">
       <DependentUpon>PageResource.xaml</DependentUpon>
     </Compile>
@@ -977,4 +981,5 @@
     </ItemGroup>
   </Target>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
+  <ItemGroup><EmbeddedResource Include="Resources\VLanBundle.zip"><LogicalName>PCL.VLanBundle.zip</LogicalName></EmbeddedResource></ItemGroup>
 </Project>

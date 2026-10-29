@@ -28,8 +28,14 @@ $frameworkRoot = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
 if (-not (Test-Path -LiteralPath (Join-Path $frameworkRoot 'vbc.exe'))) { $frameworkRoot = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319' }
 $jsonPath = Join-Path $repoRoot 'Plain Craft Launcher 2\Resources\Newtonsoft.Json.dll'
 $assemblyPath = Join-Path $outputRoot 'checks.dll'
+# Compile the exact new production fingerprint alongside the legacy navigation fixtures.
+$vlanSource = [IO.File]::ReadAllText((Join-Path $repoRoot 'Plain Craft Launcher 2\Modules\ModVlanLink.vb'))
+$fingerprint = [regex]::Match($vlanSource, '(?ms)^    Friend Function Fingerprint\(.*?^    End Function\b').Value
+if (-not $fingerprint) { throw 'Missing production VLan fingerprint.' }
+$vlanFingerprint = Join-Path $outputRoot 'VlanFingerprint.vb'
+[IO.File]::WriteAllText($vlanFingerprint, "Imports System.Text`r`nImports System.Security.Cryptography`r`nFriend Module ModVlanLink`r`n" + $fingerprint + "`r`nEnd Module", [Text.UTF8Encoding]::new($false))
 $references = @('System.dll', 'System.Core.dll', 'System.Net.Http.dll', 'System.IO.Compression.dll', 'System.IO.Compression.FileSystem.dll') | ForEach-Object { '/reference:' + (Join-Path $frameworkRoot $_) }
-& (Join-Path $frameworkRoot 'vbc.exe') /nologo /target:library /optioninfer+ /optionstrict+ ('/out:' + $assemblyPath) ('/reference:' + $jsonPath) @references $extractedPath $eventPath (Join-Path $PSScriptRoot 'Stubs.vb') (Join-Path $PSScriptRoot 'Checks.vb') (Join-Path $repoRoot 'Plain Craft Launcher 2\Modules\ModLocalLink.vb') *> (Join-Path $outputRoot 'compile.log')
+& (Join-Path $frameworkRoot 'vbc.exe') /nologo /target:library /optioninfer+ /optionstrict+ ('/out:' + $assemblyPath) ('/reference:' + $jsonPath) @references $vlanFingerprint $extractedPath $eventPath (Join-Path $PSScriptRoot 'Stubs.vb') (Join-Path $PSScriptRoot 'Checks.vb') (Join-Path $repoRoot 'Plain Craft Launcher 2\Modules\ModLocalLink.vb') *> (Join-Path $outputRoot 'compile.log')
 if ($LASTEXITCODE -ne 0) { Get-Content -LiteralPath (Join-Path $outputRoot 'compile.log'); throw 'Navigation checks compile failed.' }
 $runtimeShell = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
 & $runtimeShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Run-Runtime.ps1') -AssemblyPath $assemblyPath -JsonPath $jsonPath -OutputRoot $outputRoot

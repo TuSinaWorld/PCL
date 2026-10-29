@@ -22,6 +22,7 @@ $suites = @(
     'LocalLinkInput\Run.ps1'
     'EmbeddedConfiguration\Run.ps1'
     'EmbeddedConfigurationBuild\Run.ps1'
+    'VlanLink\Run.ps1'
 )
 $results = @()
 foreach ($suite in $suites) {

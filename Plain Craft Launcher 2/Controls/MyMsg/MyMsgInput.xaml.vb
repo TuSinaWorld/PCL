@@ -17,6 +17,12 @@ Public Class MyMsgInput
             TextArea.Text = Converter.Content
             TextArea.HintText = Converter.HintText
             TextArea.ValidateRules = Converter.ValidateRules
+            If Converter.InputMasked Then
+                TextArea.Visibility = Visibility.Collapsed
+                PasswordArea.Visibility = Visibility.Visible
+                PasswordArea.MaxLength = Converter.InputMaxLength
+                PasswordArea.Password = If(Converter.Content, "").ToString()
+            End If
             Btn1.Text = Converter.Button1
             If Converter.IsWarn Then
                 Btn1.ColorType = MyButton.ColorState.Red
@@ -36,7 +42,7 @@ Public Class MyMsgInput
 
             'UI 初始化
             If Btn2.IsVisible AndAlso Not Btn1.ColorType = MyButton.ColorState.Red Then Btn1.ColorType = MyButton.ColorState.Highlight
-            TextArea.Focus()
+            If MyConverter.InputMasked Then PasswordArea.Focus() Else TextArea.Focus()
             TextArea.SelectionStart = TextArea.Text.Length
             '动画
             Opacity = 0
@@ -73,6 +79,7 @@ Public Class MyMsgInput
     End Sub
 
     Public Sub Btn1_Click() Handles Btn1.Click
+        If MyConverter.InputMasked Then TextArea.Text = PasswordArea.Password
         TextArea.Validate() '#5773
         If MyConverter.IsExited OrElse Not TextArea.IsValidated Then Return
         MyConverter.IsExited = True

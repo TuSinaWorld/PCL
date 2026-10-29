@@ -30,6 +30,7 @@
                            Foreground="#FF5C5C5C" FontWeight="Normal" Padding="1" />
             </my:MyScrollViewer>
             <my:MyTextBox Grid.Row="4" Margin="7,0,7,12" x:Name="TextArea" UseLayoutRounding="False" MaxLength="1000" MinWidth="450" />
+            <PasswordBox Grid.Row="4" Margin="7,0,7,12" x:Name="PasswordArea" Visibility="Collapsed" MinWidth="450" Padding="7" />
             <StackPanel Grid.Row="5" Name="PanBtn" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="150,0,8,0" Orientation="Horizontal">
                 <my:MyButton ColorType="Normal" x:FieldModifier="public" Text="测试按钮1" x:Name="Btn1" Margin="12,0,0,0" TextPadding="7" SnapsToDevicePixels="False" Padding="5,0" UseLayoutRounding="False" />
                 <my:MyButton ColorType="Normal" x:FieldModifier="public" Text="测试按钮2" x:Name="Btn2" Margin="12,0,0,0" TextPadding="7" SnapsToDevicePixels="False" Padding="5,0" UseLayoutRounding="False" />

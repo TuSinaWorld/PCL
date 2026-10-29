@@ -1,4 +1,4 @@
-# 本地功能与恢复说明
+﻿# 本地功能与恢复说明
 
 后续开发统一在 `dev/local-client` 分支提交并同步到 fork；原恢复分支及 PR 保留。开发与发布规则见 `AGENTS.md`、`RELEASING.md`。
 
@@ -18,18 +18,23 @@
 
 配置下发、公告、启动器自更新与遥测已停用，设置入口隐藏。旧服务地址、缓存公告及自动更新开关不会重新启用它们；旧 `--update` 调用退出失败，不替换文件。升级请手动替换启动器。全局设置导入/导出隐藏；整合包导出页面的本地导入/导出仍可用。
 
-## EasyTier 联机：双方使用本 fork
+## VLan 联机融合（开发测试版）
 
-无需 PCL 配置服务器。首次联机自动下载固定的官方 **EasyTier v2.6.4**，按系统架构选择 x86_64 / i686 / arm64 包，核对内置 SHA-256 后暂存安装，保留旧安装用于恢复。安装运行所需 EXE、DLL/SYS，不安装系统服务、不修改防火墙。
+联机入口已替换为用户自己的 VLan v9 后端。现有 v9 服务端代码及协议保持不变；旧 EasyTier 模块仅留作历史回归夹具，产品路径不再获取公共节点或启动 EasyTier。当前仅提供 Windows x64 的融合组件，不覆盖 fork-3.0.1 正式 Release。
 
-- 房主默认从 `https://uptime.easytier.cn/api/nodes?page=1&per_page=1000` 选择公共节点。请求失败时可使用七天内的缓存；没有有效缓存时提示重试或填写自定义节点。
-- 设置中的自定义节点支持逗号分隔的连接 URI；房间码会携带实际节点，加入者无需再查询清单或手动填写同一节点。
-- 房主在 Minecraft 选择“对局域网开放”，将显示的端口填入联机页面，创建后复制 `PCLF1:` 开头的房间码给朋友。朋友在同版 fork 中选择加入并粘贴。
-- 房间码为 Base64URL JSON，字段为 `v`、`network`、`secret`、`port`、`peers`。房间名和口令使用随机生成值；它包含加入权限，请只发给需要联机的人。日志隐藏房间码和口令。
-- 使用免 TUN 模式及本机 TCP/UDP 端口转发，恢复节点、人数、Ping、NAT、中继信息及本机 Minecraft 房间广播。退出、取消或失败只停止本次启动的组件进程。
-- 不承诺与原版 PCL 的邀请码互通；旧房间码提示使用同版 fork 重建。公共节点在线状态和实际 NAT 条件仍会影响连接。
+- 房主首次在设置中填写服务器地址、端口（默认 11510）和鉴权密码，可测试鉴权；凭据按 Windows 当前用户 DPAPI 加密保存。
+- 创建房间优先读取当前 Minecraft 日志中的局域网端口，识别失败可手填。默认自动生成随机房间密码，也可在设置中选择不设房间密码。
+- `PCLV1:` 邀请码带完整服务器凭据、房间信息及游戏主机会话。持码者可以取得并复用服务器密码；加密只遮蔽明文，请仅分享给可信好友。不承诺客户端过期或撤销能让服务端密码失效。
+- 加入时展示服务器端点并允许仅本次使用或加密记住；不要求额外导入服务器配置。旧 `PCLF1:` 提示房主重新创建。
+- 房间不存在时提示获取新码，不自动创建替代房间。无密码房间直接加入，但仍要求服务器鉴权；密码错误可在失败卡片重新输入。房间 ID 复用通过房主随机挑战校验阻止误连。
+- 游戏代理只监听本机 IPv4/IPv6 回环地址，将 Minecraft TCP 转发到房主虚拟 IP；本机广播使游戏可发现房间，另提供复制地址。当前不承诺其它游戏的本地 UDP 代理。
+- PCL 与游戏保持普通权限，辅助进程通过 `runas` 申请 UAC。实际联机使用 Wintun，会配置临时网卡、路由和防火墙规则；退出时清理，不安装常驻服务。清理未完成不启动第二个组件。
+- 关闭启动器会确认并等待组件清理；取消关闭继续联机。启动器意外退出或命名管道断开时，组件走正常清理，不强杀驱动线程。
+- 显示成员、实际传输方式、RTT、探测超时率。保留最多 8 人、IPv4、中心中继；不提供 P2P 或 EasyTier NAT 状态。高级设置可选择下次建房使用 TCP Relay。
 
-官方组件：[v2.6.4](https://github.com/EasyTier/EasyTier/releases/tag/v2.6.4)、[附件摘要](https://github.com/EasyTier/EasyTier/releases/expanded_assets/v2.6.4)、[免 TUN 模式](https://easytier.cn/guide/network/no-root.html)。
+融合测试 EXE 内嵌经校验的 CLI + 官方 Wintun 包，首次联机自动释放并逐文件校验，避免依赖尚未发布的机器接口下载资产；无额外手动下载步骤。包的精确 CLI 源码在 [VLan 集成分支](https://github.com/TuSinaWorld/vlan-connect/tree/feat/pcl-integration)，接口见该分支的 `docs/pcl-integration.md`。打包脚本 `build/Update-VlanBundle.ps1` 要求 `--version` 带 `protocol=9` 和 `machine=1`，并记录源码提交。
+
+运行 `tests/VlanLink/Run.ps1` 检查合成邀请码、DPAPI 和组件修复；加 `-IncludeLocalTransport` 执行真实回环 TCP、房主会话和 CLI 管道/退出测试。它们不连接实际服务端、不创建虚拟网卡。真实 UAC、Wintun 和双设备 Minecraft 验收另行记录，不将隔离测试等同于线上可玩性证明。
 
 ## 构建时内嵌与本地覆盖
 
@@ -67,7 +72,7 @@ msbuild "Plain Craft Launcher 2/Plain Craft Launcher 2.vbproj" -p:Configuration=
 ./tests/Run-RecoveredChecks.ps1
 ```
 
-统一测试入口涵盖禁用后端、本地配置/请求头、百宝箱、主题、整合包支持检查和联机。它们在独立隐藏进程使用合成配置，不读取实际凭据。真实双 Core 的本机 TCP/UDP 传输另有显式集成入口，见 `tests/LocalLink`。
+统一测试入口涵盖禁用后端、本地配置/请求头、百宝箱、主题、整合包支持检查和联机。它们在独立隐藏进程使用合成配置，不读取实际凭据。VLan 的本机 TCP/管道集成另有显式入口，见 `tests/VlanLink`；`tests/LocalLink` 的 EasyTier 双 Core 入口仅用于历史基线。
 
 测试与编译不能替代所有线上服务验证。首轮平台为 Windows 11 x64；其他架构的运行、跨网络 NAT 打洞/中继和两台机器上的 Minecraft 加入应单独记录。辅助 JAR 和第三方组件仍沿用上游公开依赖或二进制，不声称其全部原始源码已恢复。
 ## 2026-10-25 验证结果

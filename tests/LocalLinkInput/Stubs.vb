@@ -110,6 +110,7 @@ Partial Public Class MyMsgInput
     Public WithEvents Btn1 As MyButton
     Public WithEvents Btn2 As MyButton
     Public TextArea As MyTextBox
+    Public PasswordArea As PasswordBox = New PasswordBox()
     Public LabTitle As TextBlock
     Public LabText As TextBlock
     Public PanText As ScrollViewer
