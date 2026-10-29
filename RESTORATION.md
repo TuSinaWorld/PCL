@@ -86,3 +86,8 @@ msbuild "Plain Craft Launcher 2/Plain Craft Launcher 2.vbproj" -p:Configuration=
 ## fork-3.0.1 验证补充
 
 正式Release内嵌的资源仅包含Client ID与获授权CurseForge Key，CDN材料排除；无外部配置的独立EXE可读取默认值并用于实际请求头。十组777项行为断言及6项互操作条件通过；构建输入撤销后资源不会残留。最小在线检查中CurseForge搜索和微软设备登录准备均返回200，未进行用户登录。
+
+
+## 2026-10-29 VLan 实测补充
+
+已完成真实 UAC 允许、临时 v9 服务端鉴权、有/无密码房间、错误房间密码和失效房间处理。使用无网卡协议端验证远程 RawUDP、KCP、TCP Relay 与真实 Wintun 数据往返；正常退出及活动网卡控制通道丢失均清理完成。没有修改服务端。仅一台设备，完整 GUI 与双设备 Minecraft 实际入服仍未验收。可复现入口与证据边界见 [VLan 验收说明](docs/VLAN-INTEGRATION.md)。

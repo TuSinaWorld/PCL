@@ -30,6 +30,12 @@ Module Checks
     End Function
     Sub Main()
         Try
+            Dim Arguments = Environment.GetCommandLineArgs()
+            If Arguments.Contains("--remote") Then
+                Dim Index = Array.IndexOf(Arguments, "--remote")
+                RemoteChecks.Run(Arguments(Index + 1), Integer.Parse(Arguments(Index + 2)), If(Arguments.Length > Index + 3, Arguments(Index + 3), Nothing))
+                Return
+            End If
             If Environment.GetCommandLineArgs().Contains("--uac-probe") Then
                 Using Session As New VlanSession()
                     Console.WriteLine("Requesting Windows administrator consent; no server login or virtual NIC will be created.")

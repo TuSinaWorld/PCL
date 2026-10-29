@@ -41,12 +41,42 @@ VLan CLI 来源：[feat/pcl-integration](https://github.com/TuSinaWorld/vlan-con
 - VLan CMake：22 组协议、鉴权、CLI/GUI 生命周期、传输、链路质量及机器 JSON 检查通过。网卡相关隔离测试使用替身，并非安装真实 Wintun 的证明。
 - Debug 与 Release 完整构建；单 EXE 依赖、WPF 资源及内嵌授权 API 配置另行核验。
 
-实际 UAC 探测已出现 `vlan-cli.exe 正在请求你的许可`；用户当前不在电脑前，未允许本次请求，探测进程已结束。**允许后的提权控制通道、实际 Wintun/路由/防火墙清理、远程 v9 服务器与两台设备的 Minecraft 加入尚未验收。** 不将此包发布为已完成线上验收的稳定版。
+## 2026-10-29 管理员与临时远程服务器验收
 
-回机后先关闭遗留授权窗口（如有），再执行：
+实际 UAC 允许后的辅助进程启动、管道双方 PID 校验与服务器 v9 鉴权已通过。有密码、无密码、TCP Relay 预设房间均可创建并进入真实网卡就绪状态；接口 metric=5、MTU=1400、有限广播路由 metric=1，预期命名的入站防火墙规则存在。每次离房及最终退出后，测试新增的适配器、地址、接口、路由、规则和进程均清理完成。
+
+使用无网卡的第二协议客户端验证：
+
+- 无房间密码可加入；错误房间密码被服务端拒绝。
+- 默认 RawUDP 的正式链路探针经远程服务器往返。
+- 默认 KCP 的 IPv4 UDP 回声经远程服务器和真实 Wintun 注入/出站往返，载荷、地址和端口一致。
+- TCP Relay 的探针与真实 Wintun 回声往返同样通过。
+- 第二协议端不配置任何本机虚拟 IP，因此以上中继结果不是同机本地路由绕过服务器的假阳性。所有探针要求服务端确认注销。
+- 活动 Wintun 期间直接断开启动器控制管道，辅助进程自行离房、退出并清理所有本次网络对象，没有强杀驱动工作线程。
+- 加入已删除的本次受保护房间，明确返回 `ROOM_NOT_FOUND`，没有自动创建替代房间。
+
+**本次验证覆盖启动器使用的生产后台模块、内嵌 CLI 和真实远程传输，不等于两台设备的 Minecraft 实际入服验收。** 当前只有一台 Windows 设备，完整 GUI 点击流程、双设备 Minecraft 入服与长时间游戏稳定性仍须另测。服务端未修改，测试密码不写入源码、Git 或报告；驱动包保留不视为泄漏，不卸载共享 Wintun 驱动。
+
+### 复测
+
+`tests/VlanLink/Run.ps1 -UacProbe` 只触发 UAC 并查询状态，不创建网卡。真实测试使用 `-Remote -ServerHost <服务器> -ServerPort 11510`；密码仅从临时进程环境变量 `PCL_VLAN_TEST_PASSWORD` 读取，不使用命令行参数。
+
+先在 x64 MSVC 开发者环境构建匹配集成分支的 CLI，然后构建无网卡协议端：
 
 ```powershell
-./tests/VlanLink/Run.ps1 -UacProbe
+./tests/VlanLink/Build-RelayProbe.ps1 -VlanSourceRoot '<VLan源码目录>' -NativeObjectDirectory '<CLI本次构建obj目录>'
 ```
 
-允许后应显示 `runas helper connected`，随后自动退出，不创建网卡。再用测试 EXE 设置真实 v9 服务器，两台设备分别创建和加入，验证有密码/无密码、旧码失效、满员、实际 Minecraft 传输、关闭取消及确认关闭后的网卡/规则/进程清理。分别测试默认传输与 TCP Relay 预设，记录不同网络的结果。
+使用上一步输出的 EXE 路径运行完整远程验收；服务器使用占位符，不在测试源码中固定临时端点或密码：
+
+```powershell
+$secret = Read-Host '临时服务器密码' -AsSecureString
+$env:PCL_VLAN_TEST_PASSWORD = [Net.NetworkCredential]::new('', $secret).Password
+try {
+    ./tests/VlanLink/Run.ps1 -Remote -ServerHost 'your-v9-server.example' -ServerPort 11510 -RelayProbe '<HeadlessRelayProbe.exe路径>'
+} finally {
+    Remove-Item Env:PCL_VLAN_TEST_PASSWORD -ErrorAction SilentlyContinue
+}
+```
+
+每次运行使用独立测试目录，只操作本次随机命名/随机密码房间。若检测到已有 VLan 网卡、规则或该虚拟网段则拒绝开始，不删除用户既有网络配置。真实测试需要人工允许一次 UAC；记录保存在独立目录的 `s/live`，不保存邀请码或密码。只运行 `-Remote` 不带探针时不把本机游戏代理回声标成远程数据验证。

@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([switch]$IncludeLocalTransport, [switch]$UacProbe)
+param([switch]$IncludeLocalTransport, [switch]$UacProbe, [switch]$Remote, [string]$ServerHost, [int]$ServerPort=11510, [string]$RelayProbe)
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $toolRoot = Join-Path (Split-Path $repoRoot -Parent) 'analysis\tools'
@@ -17,7 +17,11 @@ $buildArgs = @('msbuild', (Join-Path $PSScriptRoot 'Checks.vbproj'), '-nologo', 
 if (Test-Path -LiteralPath $refs) { $buildArgs += @(('-p:FrameworkPathOverride='+$refs+'\v4.8'), ('-p:TargetFrameworkRootPath='+$refs+'\')) }
 & $dotnet @buildArgs
 if ($LASTEXITCODE -ne 0) { throw 'VLan checks compilation failed.' }
-if ($UacProbe) { & (Join-Path $output 'VlanLinkChecks.exe') --uac-probe }
+if ($Remote) {
+    if ($RelayProbe) { & (Join-Path $output 'VlanLinkChecks.exe') --remote $ServerHost $ServerPort $RelayProbe }
+    else { & (Join-Path $output 'VlanLinkChecks.exe') --remote $ServerHost $ServerPort }
+}
+elseif ($UacProbe) { & (Join-Path $output 'VlanLinkChecks.exe') --uac-probe }
 elseif ($IncludeLocalTransport) { & (Join-Path $output 'VlanLinkChecks.exe') }
 else { & (Join-Path $output 'VlanLinkChecks.exe') --offline }
 if ($LASTEXITCODE -ne 0) { throw 'VLan production-code checks failed.' }

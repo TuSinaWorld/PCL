@@ -8,6 +8,7 @@
     <Reference Include="Newtonsoft.Json"><HintPath>..\..\Plain Craft Launcher 2\Resources\Newtonsoft.Json.dll</HintPath></Reference>
     <Import Include="System"/><Import Include="Microsoft.VisualBasic"/><Import Include="System.Linq"/><Import Include="System.Collections.Generic"/><Import Include="System.Diagnostics"/>
     <Compile Include="Checks.vb"/>
+    <Compile Include="RemoteChecks.vb"/>
     <Compile Include="..\..\Plain Craft Launcher 2\Modules\ModVlanLink.vb"/>
     <Compile Include="..\..\Plain Craft Launcher 2\Modules\ModVlanPackage.vb"/>
     <Compile Include="..\..\Plain Craft Launcher 2\Modules\VlanGameBridge.vb"/>
